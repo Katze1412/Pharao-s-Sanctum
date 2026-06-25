@@ -1,0 +1,9 @@
+{
+  "name": "YGO Kartenarchiv",
+  "short_name": "YGO Archiv",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0d0a06",
+  "theme_color": "#0d0a06",
+  "icons": []
+}
