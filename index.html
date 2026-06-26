@@ -193,6 +193,13 @@ h1,h2,h3{font-family:'Cinzel',serif;letter-spacing:.5px;margin:0;}
 }
 .fab:hover{transform:scale(1.06);}
 .fab:active{transform:scale(.96);}
+#fab-note{font-size:24px;}
+
+/* Offline-Banner */
+.offline-banner{
+  background:rgba(138,35,50,.18);border-bottom:1px solid var(--crimson-bright);
+  color:#f0a3ad;font-size:12.5px;padding:8px 14px;text-align:center;
+}
 
 /* Modal */
 .modal-overlay{
@@ -318,12 +325,14 @@ textarea.csv-input{min-height:120px;font-family:'JetBrains Mono',monospace;font-
 <div class="app" id="app"></div>
 <div id="modal-root"></div>
 <div id="locmodal-root"></div>
+<div id="notemodal-root"></div>
 <div class="toast" id="toast"></div>
 
 <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="js/config.js"></script>
 <script src="js/state.js"></script>
+<script src="js/offline.js"></script>
 <script src="js/data.js"></script>
 <script src="js/auth.js"></script>
 <script src="js/render-main.js"></script>
