@@ -57,6 +57,8 @@ function attachMainListeners(){
   if(fab){ fab.onclick = function(){ openModalForNew(); }; }
   const fabNote = document.getElementById('fab-note');
   if(fabNote){ fabNote.onclick = function(){ openNoteModal(); }; }
+  const fabBell = document.getElementById('fab-bell');
+  if(fabBell){ fabBell.onclick = function(){ openNoteModal(); }; }
 
   const csvExportBtn = document.getElementById('btn-csv-export');
   if(csvExportBtn){ csvExportBtn.onclick = exportCsv; }

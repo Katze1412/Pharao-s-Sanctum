@@ -7,7 +7,8 @@ function render(){
     renderOfflineBanner() +
     renderTopbar() +
     renderTabs() +
-    renderTabContent();
+    renderTabContent() +
+    renderBellFab();
   attachMainListeners();
   renderModal();
   renderNoteModal();

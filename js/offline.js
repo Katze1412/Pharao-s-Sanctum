@@ -97,6 +97,12 @@ function renderOfflineBanner(){
   '</div>';
 }
 
+function renderBellFab(){
+  const note = loadOfflineNote();
+  if(!note || !note.text) return '';
+  return '<div class="fab fab-bell" id="fab-bell" title="Offline-Notiz ansehen">🔔</div>';
+}
+
 function openNoteModal(){
   offlineNoteModalOpen = true;
   renderNoteModal();
@@ -104,7 +110,7 @@ function openNoteModal(){
 
 function closeNoteModal(){
   offlineNoteModalOpen = false;
-  renderNoteModal();
+  render();
 }
 
 function renderNoteModal(){
