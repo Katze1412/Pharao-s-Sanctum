@@ -4,11 +4,13 @@
 function render(){
   const app = document.getElementById('app');
   app.innerHTML =
+    renderOfflineBanner() +
     renderTopbar() +
     renderTabs() +
     renderTabContent();
   attachMainListeners();
   renderModal();
+  renderNoteModal();
 }
 
 function renderTopbar(){
@@ -53,6 +55,13 @@ function matchesSearch(c){
   return haystack.indexOf(q) !== -1;
 }
 
+function renderFab(){
+  if(isOffline){
+    return '<div class="fab" id="fab-note" title="Notiz hinterlassen">📝</div>';
+  }
+  return '<div class="fab" id="fab-add">+</div>';
+}
+
 function renderSammlung(){
   const submenu = '' +
   '<div class="subtabs">' +
@@ -86,13 +95,10 @@ function renderSammlungUebersicht(){
     '<div class="stat"><div class="num">' + totalValue.toFixed(2) + ' €</div><div class="lbl">Geschätzter Wert</div></div>' +
   '</div>' +
   '<div class="backup-row">' +
-    '<button id="btn-backup-export">⤓ Sammlung sichern</button>' +
-    '<button id="btn-backup-import">⤒ Sicherung wiederherstellen</button>' +
     '<button id="btn-csv-export">⤓ Als CSV exportieren</button>' +
-    '<input type="file" id="backup-file-input" accept="application/json" style="display:none">' +
   '</div>';
 
-  const fabHtml = '<div class="fab" id="fab-add">+</div>';
+  const fabHtml = renderFab();
 
   if(filtered.length===0){
     return stats + groupbar + renderEmpty('sammlung', true);
@@ -130,7 +136,7 @@ function renderSammlungUebersicht(){
 
 function renderArchetypenView(){
   const filtered = cards.filter(matchesSearch).filter(function(c){ return c.archetype && c.archetype.trim(); });
-  const fabHtml = '<div class="fab" id="fab-add">+</div>';
+  const fabHtml = renderFab();
 
   if(filtered.length===0){
     return renderEmpty('archetypen', true);
@@ -186,7 +192,7 @@ function renderEmpty(mode, showFab){
     verkauf: ["Nichts zum Verkauf markiert", "Setze bei einer Karte den Verkaufsstatus, dann erscheint sie hier."]
   };
   const t = texts[mode];
-  return '<div class="empty-state"><h3>' + t[0] + '</h3><p>' + t[1] + '</p></div>' + (showFab ? '<div class="fab" id="fab-add">+</div>' : '');
+  return '<div class="empty-state"><h3>' + t[0] + '</h3><p>' + t[1] + '</p></div>' + (showFab ? renderFab() : '');
 }
 
 function renderCardRow(c, mode){
@@ -218,13 +224,17 @@ function renderCardRow(c, mode){
   if(isOverdue) badges.push('<span class="badge lent-overdue">Lange verliehen · ' + overdueDays + ' Tage</span>');
   if(c.saleStatus && c.saleStatus!=='frei') badges.push('<span class="badge sale">' + (c.saleStatus==='verkauft'?'Verkauft':'Zum Verkauf') + '</span>');
 
+  const qtyControl = isOffline ? '' : '' +
+  '<div class="qty-control">' +
+    '<button type="button" class="qty-btn" data-qty-minus="' + c.id + '">−</button>' +
+    '<div class="qty">×' + (c.quantity||1) + '</div>' +
+    '<button type="button" class="qty-btn" data-qty-plus="' + c.id + '">+</button>' +
+  '</div>';
+  const qtyDisplayOffline = isOffline ? '<div class="qty mono" style="flex-shrink:0;">×' + (c.quantity||1) + '</div>' : '';
+
   return '' +
-  '<div class="card-row' + (isOverdue?' overdue':'') + '" data-edit="' + c.id + '">' +
-    '<div class="qty-control">' +
-      '<button type="button" class="qty-btn" data-qty-minus="' + c.id + '">−</button>' +
-      '<div class="qty">×' + (c.quantity||1) + '</div>' +
-      '<button type="button" class="qty-btn" data-qty-plus="' + c.id + '">+</button>' +
-    '</div>' +
+  '<div class="card-row' + (isOverdue?' overdue':'') + '"' + (isOffline ? '' : ' data-edit="' + c.id + '"') + '>' +
+    qtyControl + qtyDisplayOffline +
     '<div class="info">' +
       '<div class="name">' + escapeHtml(c.name||'(ohne Namen)') + '</div>' +
       '<div class="meta">' + metaParts.join(' · ') + '</div>' +

@@ -3,6 +3,8 @@
    ============================================================ */
 async function init(){
   supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  initOfflineHandling();
+  if(isOffline) return;
 
   const { data: sessionData } = await supabaseClient.auth.getSession();
   if(sessionData && sessionData.session && sessionData.session.user){
@@ -33,6 +35,7 @@ async function loadAppData(){
     settings = loadedSettings;
   }
   render();
+  saveOfflineSnapshot();
 }
 
 function showLoginScreen(){

@@ -20,6 +20,8 @@ let scanImagePreview = null;
 let scanCandidates = [];
 let scanProgress = '';
 let scanAttempted = false;
+let isOffline = false;
+let offlineNoteModalOpen = false;
 
 const RARITIES = ["Common","Rare","Super Rare","Ultra Rare","Secret Rare","Ultimate Rare","Ghost Rare","Starlight Rare","Andere"];
 const CONDITIONS = ["Wie neu","Sehr gut","Gut","Stark abgenutzt","Beschädigt"];

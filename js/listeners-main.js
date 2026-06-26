@@ -55,18 +55,9 @@ function attachMainListeners(){
   }
   const fab = document.getElementById('fab-add');
   if(fab){ fab.onclick = function(){ openModalForNew(); }; }
+  const fabNote = document.getElementById('fab-note');
+  if(fabNote){ fabNote.onclick = function(){ openNoteModal(); }; }
 
-  const exportBtn = document.getElementById('btn-backup-export');
-  if(exportBtn){ exportBtn.onclick = exportBackup; }
-  const importBtn = document.getElementById('btn-backup-import');
-  const importInput = document.getElementById('backup-file-input');
-  if(importBtn && importInput){
-    importBtn.onclick = function(){ importInput.click(); };
-    importInput.onchange = function(){
-      const file = importInput.files[0];
-      if(file) importBackup(file);
-    };
-  }
   const csvExportBtn = document.getElementById('btn-csv-export');
   if(csvExportBtn){ csvExportBtn.onclick = exportCsv; }
 }
