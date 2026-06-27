@@ -1,22 +1,27 @@
 async function fetchYgoCard(name){
+  const cleanName = name.trim().replace(/\s+/g, ' ');
   async function tryUrl(url){
     try{
       const res = await fetch(url);
       const raw = await res.text();
       let data;
       try{ data = JSON.parse(raw); } catch(e){ return null; }
-      if(!data || !data.data || !data.data[0]) return null;
-      return data.data[0];
+      if(!data || !data.data || data.data.length===0) return null;
+      // Bei mehreren Treffern (fname-Fuzzy-Suche): exakte Namens-Übereinstimmung bevorzugen
+      const exact = data.data.find(function(c){ return c.name.toLowerCase() === cleanName.toLowerCase(); });
+      return exact || data.data[0];
     } catch(e){
       return null;
     }
   }
-  const deUrl = 'https://db.ygoprodeck.com/api/v7/cardinfo.php?name=' + encodeURIComponent(name) + '&language=de';
-  let card = await tryUrl(deUrl);
-  if(!card){
-    const enUrl = 'https://db.ygoprodeck.com/api/v7/cardinfo.php?name=' + encodeURIComponent(name);
-    card = await tryUrl(enUrl);
-  }
+  // 1. Exakte Suche (schnell & präzise, wenn Name 1:1 übereinstimmt)
+  let card = await tryUrl('https://db.ygoprodeck.com/api/v7/cardinfo.php?name=' + encodeURIComponent(cleanName) + '&language=de');
+  // 2. Unscharfe Suche auf Deutsch (toleriert Schreibweise-Abweichungen)
+  if(!card) card = await tryUrl('https://db.ygoprodeck.com/api/v7/cardinfo.php?fname=' + encodeURIComponent(cleanName) + '&language=de');
+  // 3. Exakte Suche auf Englisch
+  if(!card) card = await tryUrl('https://db.ygoprodeck.com/api/v7/cardinfo.php?name=' + encodeURIComponent(cleanName));
+  // 4. Unscharfe Suche auf Englisch
+  if(!card) card = await tryUrl('https://db.ygoprodeck.com/api/v7/cardinfo.php?fname=' + encodeURIComponent(cleanName));
   return card;
 }
 
