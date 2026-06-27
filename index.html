@@ -149,6 +149,22 @@ h1,h2,h3{font-family:'Cinzel',serif;letter-spacing:.5px;margin:0;}
   padding:10px 14px 10px 16px;border-radius:0 8px 8px 0;
   cursor:pointer;user-select:none;
 }
+.select-group-btn{
+  background:var(--panel-3);border:1px solid var(--border);color:var(--text-muted);
+  font-size:11px;padding:5px 9px;border-radius:6px;cursor:pointer;margin-right:8px;
+  font-family:'Rajdhani',sans-serif;
+}
+.select-group-btn:hover{color:var(--gold-bright);border-color:var(--gold);}
+.select-checkbox{
+  width:22px;height:22px;flex-shrink:0;accent-color:var(--gold);cursor:pointer;
+}
+.selection-bar{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  background:rgba(31,63,110,.18);border:1px solid var(--lapis-bright);
+  border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:13px;
+}
+.selection-bar span{color:var(--text);font-weight:600;margin-right:4px;}
+.selection-bar .btn{width:auto;padding:6px 11px;font-size:12.5px;}
 .group-header::before{
   content:'';position:absolute;left:-4px;top:50%;transform:translateY(-50%);
   width:8px;height:8px;border-radius:50%;background:var(--bg);border:2px solid var(--gold);
