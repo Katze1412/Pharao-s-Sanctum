@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>YGO Kartenarchiv</title>
+<title>Pharao's Sanctum</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0d0a06">
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Rajdhani:wght@500;600;700&family=JetBrains+Mono:wght@500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Rajdhani:wght@500;600;700&family=JetBrains+Mono:wght@500&family=Noto+Sans+Egyptian+Hieroglyphs&display=swap');
 
 :root{
   --bg:#0d0a06;
@@ -21,6 +21,8 @@
   --crimson-bright:#b53249;
   --teal:#3f8f86;
   --teal-bright:#56b3a8;
+  --lapis:#1f3f6e;
+  --lapis-bright:#4d7ec2;
   --text:#ede3d0;
   --text-muted:#a8967a;
   --border:#3a2c16;
@@ -52,10 +54,35 @@ h1,h2,h3{font-family:'Cinzel',serif;letter-spacing:.5px;margin:0;}
   text-shadow:0 0 12px rgba(201,162,39,.35);
   display:flex;align-items:center;gap:8px;
 }
-.topbar h1 .eye{
-  width:20px;height:20px;border-radius:50%;
-  background:radial-gradient(circle at 50% 45%, var(--gold-bright) 0 30%, var(--crimson) 32% 55%, transparent 58%);
-  box-shadow:0 0 10px var(--gold);
+.hiero{font-family:'Noto Sans Egyptian Hieroglyphs', sans-serif;line-height:1;}
+
+.title-cartouche{
+  display:inline-flex;align-items:center;gap:9px;
+  border:2px solid var(--gold);border-radius:999px;
+  padding:6px 18px 6px 12px;position:relative;
+}
+.title-cartouche::before,.title-cartouche::after{
+  content:'';position:absolute;top:-4px;bottom:-4px;width:3px;
+  background:var(--gold);border-radius:2px;
+}
+.title-cartouche::before{left:-3px;}
+.title-cartouche::after{right:-3px;}
+.title-cartouche h1{font-size:20px;}
+.hiero-eye{
+  font-size:21px;color:var(--gold-bright);
+  text-shadow:0 0 8px var(--gold), 0 0 16px rgba(201,162,39,.5);
+}
+.settings-btn{
+  background:none;border:none;color:var(--text-muted);font-size:16px;
+  cursor:pointer;padding:4px 6px;line-height:1;
+}
+.settings-btn:hover{color:var(--gold-bright);}
+
+.hiero-rule{
+  font-family:'Noto Sans Egyptian Hieroglyphs', sans-serif;line-height:1;
+  text-align:center;font-size:13px;letter-spacing:6px;
+  color:var(--gold);opacity:.3;margin-top:14px;
+  white-space:nowrap;overflow:hidden;
 }
 .searchbar{
   margin-top:12px;display:flex;align-items:center;gap:8px;
@@ -173,10 +200,15 @@ h1,h2,h3{font-family:'Cinzel',serif;letter-spacing:.5px;margin:0;}
 }
 .badge.lent{background:rgba(63,143,134,.18);color:var(--teal-bright);border:1px solid var(--teal);}
 .badge.lent-overdue{background:rgba(181,50,73,.25);color:#f5b4bd;border:1px solid var(--crimson-bright);}
-.badge.sale{background:rgba(138,35,50,.2);color:#e7909c;border:1px solid var(--crimson-bright);}
+.badge.sale{background:rgba(31,63,110,.25);color:#9fc1ed;border:1px solid var(--lapis-bright);}
 
 .empty-state{
   text-align:center;padding:48px 16px;color:var(--text-muted);
+}
+.empty-state .hiero-glyph{
+  font-family:'Noto Sans Egyptian Hieroglyphs', sans-serif;line-height:1;
+  font-size:46px;color:var(--gold);opacity:.35;display:block;margin-bottom:10px;
+  text-shadow:0 0 18px rgba(201,162,39,.25);
 }
 .empty-state h3{color:var(--gold-bright);font-size:16px;margin-bottom:6px;}
 .empty-state p{font-size:13.5px;margin:0;}
@@ -329,6 +361,7 @@ textarea.csv-input{min-height:120px;font-family:'JetBrains Mono',monospace;font-
 <div class="app" id="app"></div>
 <div id="modal-root"></div>
 <div id="locmodal-root"></div>
+<div id="settingsmodal-root"></div>
 <div id="notemodal-root"></div>
 <div class="toast" id="toast"></div>
 
@@ -343,6 +376,7 @@ textarea.csv-input{min-height:120px;font-family:'JetBrains Mono',monospace;font-
 <script src="js/listeners-main.js"></script>
 <script src="js/cardmarket.js"></script>
 <script src="js/modal-core.js"></script>
+<script src="js/settings.js"></script>
 <script src="js/csv-import.js"></script>
 <script src="js/scan-ocr.js"></script>
 <script src="js/app.js"></script>

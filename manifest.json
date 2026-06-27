@@ -1,6 +1,6 @@
 {
-  "name": "YGO Kartenarchiv",
-  "short_name": "YGO Archiv",
+  "name": "Pharao's Sanctum",
+  "short_name": "Sanctum",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#0d0a06",
