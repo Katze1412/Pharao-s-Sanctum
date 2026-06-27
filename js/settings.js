@@ -21,6 +21,7 @@ function renderSettingsMenu(){
     '<div class="modal" style="max-width:380px;">' +
       '<div class="modal-head"><h2>Einstellungen</h2><button class="modal-close" id="settingsmodal-close">×</button></div>' +
       '<button class="btn btn-secondary" id="settings-locations" type="button" style="margin-bottom:10px;">📦 Lagerorte verwalten</button>' +
+      '<button class="btn btn-secondary" id="settings-selection" type="button" style="margin-bottom:10px;">🗑️ Mehrere Karten auswählen &amp; löschen</button>' +
       '<button class="btn btn-secondary" id="settings-backup-export" type="button" style="margin-bottom:10px;">⤓ Sammlung sichern (JSON)</button>' +
       '<button class="btn btn-secondary" id="settings-backup-import" type="button">⤒ Sicherung wiederherstellen</button>' +
       '<input type="file" id="settings-backup-file" accept="application/json" style="display:none">' +
@@ -31,6 +32,13 @@ function renderSettingsMenu(){
   document.getElementById('settingsmodal-overlay').onclick = function(e){ if(e.target.id==='settingsmodal-overlay') closeSettingsMenu(); };
   document.getElementById('settingsmodal-close').onclick = closeSettingsMenu;
   document.getElementById('settings-locations').onclick = function(){ closeSettingsMenu(); openLocManager(); };
+  document.getElementById('settings-selection').onclick = function(){
+    closeSettingsMenu();
+    selectionMode = true;
+    selectedIds.clear();
+    currentTab = 'sammlung';
+    render();
+  };
   document.getElementById('settings-backup-export').onclick = exportBackup;
 
   const importBtn = document.getElementById('settings-backup-import');

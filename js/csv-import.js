@@ -28,7 +28,13 @@ function attachCsvListeners(){
       statusEl.textContent = 'Lese "' + file.name + '" …';
       const reader = new FileReader();
       reader.onload = function(){
-        const result = parseCsv(reader.result);
+        const buffer = reader.result;
+        let text = new TextDecoder('utf-8').decode(buffer);
+        // Mojibake-Heuristik: Datei war wahrscheinlich Windows-1252 (typisch bei deutschen Excel-Tools wie Cardcluster)
+        if(/Ã¤|Ã¶|Ã¼|Ã„|Ã–|ÃŸ/.test(text)){
+          text = new TextDecoder('windows-1252').decode(buffer);
+        }
+        const result = parseCsv(text);
         if(result.rows.length===0){
           statusEl.textContent = 'Keine gültigen Zeilen in der Datei gefunden.';
           pendingCsvRows = null;
@@ -44,7 +50,7 @@ function attachCsvListeners(){
         showToast('Datei konnte nicht gelesen werden');
         pendingCsvRows = null;
       };
-      reader.readAsText(file, 'utf-8');
+      reader.readAsArrayBuffer(file);
     };
   }
 
@@ -70,13 +76,21 @@ function attachCsvListeners(){
     }
     if(rows.length===0){ document.getElementById('csv-status').textContent = 'Keine gültigen Zeilen gefunden.'; return; }
     const newIds = [];
+    let newLocationsAdded = 0;
     rows.forEach(function(row){
       const card = Object.assign(emptyDraft(), row, {id: uid()});
       cards.push(card);
       newIds.push(card.id);
+      if(card.box && locations.indexOf(card.box)===-1){
+        locations.push(card.box);
+        newLocationsAdded++;
+      }
     });
     await persist(newIds);
-    document.getElementById('csv-status').textContent = rows.length + ' Karte(n) aus ' + sourceLabel + ' importiert.';
+    if(newLocationsAdded>0){
+      await DataLayer.saveLocations(locations);
+    }
+    document.getElementById('csv-status').textContent = rows.length + ' Karte(n) aus ' + sourceLabel + ' importiert' + (newLocationsAdded>0 ? (' (' + newLocationsAdded + ' neue Lagerort(e) angelegt)') : '') + '.';
     pendingCsvRows = null;
     pendingCsvFileName = '';
     render();
@@ -84,26 +98,75 @@ function attachCsvListeners(){
   };
 }
 
+function splitCsvLine(line){
+  const result = [];
+  let cur = '';
+  let inQuotes = false;
+  for(let i=0;i<line.length;i++){
+    const ch = line[i];
+    if(inQuotes){
+      if(ch === '"'){
+        if(line[i+1] === '"'){ cur += '"'; i++; }
+        else { inQuotes = false; }
+      } else {
+        cur += ch;
+      }
+    } else {
+      if(ch === '"'){ inQuotes = true; }
+      else if(ch === ','){ result.push(cur); cur=''; }
+      else { cur += ch; }
+    }
+  }
+  result.push(cur);
+  return result.map(function(c){ return c.trim(); });
+}
+
+function splitSetCodeAndNumber(raw){
+  if(!raw) return { setCode:'', cardNumber:'' };
+  const s = raw.trim();
+  // Bekanntes YGO-Muster: SETCODE + Sprachkürzel + Nummer, mit oder ohne Trenner (z.B. "DABL-DE030", "LOB DE005", "SDYEN006")
+  let m = s.match(/^(.+?)[\s-]?(DE|EN|FR|IT|SP|PT|JP|KR|AE|TC|SC)(\d{2,4}[A-Za-z]?)$/i);
+  if(m){
+    return { setCode: m[1].toUpperCase(), cardNumber: (m[2]+m[3]).toUpperCase() };
+  }
+  // Generischer Fallback: nur bei eindeutigem Trenner trennen (z.B. "ABC-123")
+  m = s.match(/^([A-Za-z0-9]{2,8})[\s-]+(.+)$/);
+  if(m){
+    return { setCode: m[1].toUpperCase(), cardNumber: m[2].toUpperCase() };
+  }
+  // Kein Trenner erkennbar — unverändert lassen, um nicht falsch zu raten
+  return { setCode: s, cardNumber: '' };
+}
+
 function parseCsv(text){
   const lines = text.split(/\r?\n/).filter(function(l){ return l.trim().length>0; });
   if(lines.length<2) return {rows:[]};
-  const headers = lines[0].split(',').map(function(h){ return h.trim().toLowerCase(); });
+  const headers = splitCsvLine(lines[0]).map(function(h){ return h.toLowerCase(); });
   const fieldMap = {
     name:'name', setcode:'setCode', 'set-kürzel':'setCode', set:'setCode',
     cardnumber:'cardNumber', kartennummer:'cardNumber', nummer:'cardNumber',
-    rarity:'rarity', rarität:'rarity', condition:'condition', zustand:'condition',
-    quantity:'quantity', anzahl:'quantity', value:'value', wert:'value',
-    box:'box', folder:'box', ordner:'box', lagerort:'box',
+    rarity:'rarity', 'rarität':'rarity', condition:'condition', zustand:'condition',
+    quantity:'quantity', anzahl:'quantity', haves:'quantity',
+    value:'value', wert:'value', einkaufspreis:'value',
+    box:'box', folder:'box', ordner:'box', lagerort:'box', 'einsortiert in':'box',
     archetype:'archetype', archetyp:'archetype', deckthema:'archetype', thema:'archetype'
   };
   const rows = [];
   for(let i=1;i<lines.length;i++){
-    const cells = lines[i].split(',').map(function(c){ return c.trim(); });
+    const cells = splitCsvLine(lines[i]);
     const row = {};
     headers.forEach(function(h, idx){
       const key = fieldMap[h];
       if(key) row[key] = cells[idx] || '';
     });
+    if(row.condition && CONDITION_NUMBER_MAP[row.condition.trim()]){
+      row.condition = CONDITION_NUMBER_MAP[row.condition.trim()];
+    }
+    if(row.setCode && !row.cardNumber){
+      const split = splitSetCodeAndNumber(row.setCode);
+      row.setCode = split.setCode;
+      row.cardNumber = split.cardNumber;
+    }
     if(row.name) rows.push(row);
   }
   return {rows: rows};

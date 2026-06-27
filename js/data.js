@@ -77,6 +77,17 @@ const DataLayer = {
       return false;
     }
   },
+  async deleteCards(ids) {
+    if (!ids || ids.length === 0) return true;
+    try {
+      const { error } = await supabaseClient.from('cards').delete().in('id', ids);
+      if (error) { console.error('Löschfehler (mehrere)', error); return false; }
+      return true;
+    } catch (e) {
+      console.error('Löschfehler (mehrere)', e);
+      return false;
+    }
+  },
   async loadLocations() {
     try {
       const { data, error } = await supabaseClient.from('locations').select('*').order('name', { ascending: true });

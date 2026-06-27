@@ -62,6 +62,46 @@ function attachMainListeners(){
   const fabBell = document.getElementById('fab-bell');
   if(fabBell){ fabBell.onclick = function(){ openNoteModal(); }; }
 
+  document.querySelectorAll('.select-checkbox').forEach(function(el){
+    el.onchange = function(){
+      const id = el.getAttribute('data-select');
+      if(el.checked) selectedIds.add(id); else selectedIds.delete(id);
+      render();
+    };
+  });
+  document.querySelectorAll('[data-select-group]').forEach(function(el){
+    el.onclick = function(e){
+      e.stopPropagation();
+      const key = el.getAttribute('data-select-group');
+      cards.filter(matchesSearch).forEach(function(c){
+        const groupKey = groupBy==='set' ? (c.setCode ? c.setCode.toUpperCase() : 'Ohne Set') : (c.box || 'Ohne Lagerort');
+        if(groupKey===key) selectedIds.add(c.id);
+      });
+      render();
+    };
+  });
+  const selAllBtn = document.getElementById('sel-all-visible');
+  if(selAllBtn){ selAllBtn.onclick = function(){ lastFilteredIds.forEach(function(id){ selectedIds.add(id); }); render(); }; }
+  const selClearBtn = document.getElementById('sel-clear');
+  if(selClearBtn){ selClearBtn.onclick = function(){ selectedIds.clear(); render(); }; }
+  const selCancelBtn = document.getElementById('sel-cancel');
+  if(selCancelBtn){ selCancelBtn.onclick = function(){ selectionMode = false; selectedIds.clear(); render(); }; }
+  const selDeleteBtn = document.getElementById('sel-delete');
+  if(selDeleteBtn){
+    selDeleteBtn.onclick = async function(){
+      if(selectedIds.size===0) return;
+      const count = selectedIds.size;
+      if(!window.confirm('Wirklich ' + count + ' Karte(n) dauerhaft löschen? Das kann nicht rückgängig gemacht werden.')) return;
+      const ids = Array.from(selectedIds);
+      const ok = await DataLayer.deleteCards(ids);
+      cards = cards.filter(function(c){ return !selectedIds.has(c.id); });
+      selectedIds.clear();
+      saveOfflineSnapshot();
+      render();
+      showToast(ok ? count + ' Karte(n) gelöscht' : 'Im Browser entfernt, Sync teilweise fehlgeschlagen — bitte Seite neu laden und prüfen');
+    };
+  }
+
   const csvExportBtn = document.getElementById('btn-csv-export');
   if(csvExportBtn){ csvExportBtn.onclick = exportCsv; }
 }

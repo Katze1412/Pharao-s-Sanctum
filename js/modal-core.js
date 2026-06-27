@@ -73,11 +73,15 @@ function renderModal(){
 }
 
 function renderManualForm(){
-  const rarityOptions = RARITIES.map(function(r){
-    return '<option value="' + r + '" ' + (draft.rarity===r?'selected':'') + '>' + r + '</option>';
+  const rarityPool = RARITIES.slice();
+  if(draft.rarity && rarityPool.indexOf(draft.rarity)===-1) rarityPool.push(draft.rarity);
+  const rarityOptions = rarityPool.map(function(r){
+    return '<option value="' + escapeAttr(r) + '" ' + (draft.rarity===r?'selected':'') + '>' + escapeHtml(r) + '</option>';
   }).join('');
-  const conditionOptions = CONDITIONS.map(function(c){
-    return '<option value="' + c + '" ' + (draft.condition===c?'selected':'') + '>' + c + '</option>';
+  const conditionPool = CONDITIONS.slice();
+  if(draft.condition && conditionPool.indexOf(draft.condition)===-1) conditionPool.push(draft.condition);
+  const conditionOptions = conditionPool.map(function(c){
+    return '<option value="' + escapeAttr(c) + '" ' + (draft.condition===c?'selected':'') + '>' + escapeHtml(c) + '</option>';
   }).join('');
   const locationPool = locations.slice();
   if(draft.box && locationPool.indexOf(draft.box)===-1) locationPool.push(draft.box);

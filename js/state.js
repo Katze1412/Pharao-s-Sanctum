@@ -23,9 +23,13 @@ let scanAttempted = false;
 let isOffline = false;
 let offlineNoteModalOpen = false;
 let settingsMenuOpen = false;
+let selectionMode = false;
+let selectedIds = new Set();
+let lastFilteredIds = [];
 
 const RARITIES = ["Common","Rare","Super Rare","Ultra Rare","Secret Rare","Ultimate Rare","Ghost Rare","Starlight Rare","Andere"];
-const CONDITIONS = ["Wie neu","Sehr gut","Gut","Stark abgenutzt","Beschädigt"];
+const CONDITIONS = ["Poor","Lightly Played","Played","Good","Excellent","Near Mint","Mint","Gem Mint"];
+const CONDITION_NUMBER_MAP = {1:"Poor",2:"Lightly Played",3:"Played",4:"Good",5:"Excellent",6:"Near Mint",7:"Mint",8:"Gem Mint"};
 
 function uid(){
   if(window.crypto && crypto.randomUUID) return crypto.randomUUID();

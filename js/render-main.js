@@ -61,7 +61,20 @@ function matchesSearch(c){
   return haystack.indexOf(q) !== -1;
 }
 
+function renderSelectionBar(){
+  if(!selectionMode) return '';
+  return '' +
+  '<div class="selection-bar">' +
+    '<span>' + selectedIds.size + ' ausgewählt</span>' +
+    '<button type="button" id="sel-all-visible" class="btn btn-secondary">Alle in Ansicht</button>' +
+    '<button type="button" id="sel-clear" class="btn btn-secondary">Auswahl leeren</button>' +
+    '<button type="button" id="sel-delete" class="btn btn-danger" ' + (selectedIds.size===0?'disabled':'') + '>🗑️ Löschen (' + selectedIds.size + ')</button>' +
+    '<button type="button" id="sel-cancel" class="btn btn-secondary">Fertig</button>' +
+  '</div>';
+}
+
 function renderFab(){
+  if(selectionMode) return '';
   if(isOffline){
     return '<div class="fab" id="fab-note" title="Notiz hinterlassen">📝</div>';
   }
@@ -83,6 +96,7 @@ function renderSammlung(){
 
 function renderSammlungUebersicht(){
   const filtered = cards.filter(matchesSearch);
+  lastFilteredIds = filtered.map(function(c){ return c.id; });
   const totalValue = filtered.reduce(function(sum,c){ return sum + (parseFloat(c.value)||0) * (parseInt(c.quantity)||1); }, 0);
 
   const groupbar = '' +
@@ -102,7 +116,8 @@ function renderSammlungUebersicht(){
   '</div>' +
   '<div class="backup-row">' +
     '<button id="btn-csv-export">⤓ Als CSV exportieren</button>' +
-  '</div>';
+  '</div>' +
+  renderSelectionBar();
 
   const fabHtml = renderFab();
 
@@ -127,10 +142,12 @@ function renderSammlungUebersicht(){
     const list = groups[key];
     const isCollapsed = collapsedGroups[key];
     const itemsHtml = list.map(function(c){ return renderCardRow(c); }).join('');
+    const selectGroupBtn = selectionMode ? '<button type="button" class="select-group-btn" data-select-group="' + escapeAttr(key) + '">Gruppe wählen</button>' : '';
     return '' +
     '<div class="group' + (isCollapsed?' collapsed':'') + '" data-groupkey="' + escapeAttr(key) + '">' +
       '<div class="group-header" data-toggle-group="' + escapeAttr(key) + '">' +
         '<div><span class="title">' + escapeHtml(key) + '</span><span class="sub">' + list.length + ' Eintrag' + (list.length===1?'':'e') + '</span></div>' +
+        selectGroupBtn +
         '<svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>' +
       '</div>' +
       '<div class="group-items">' + itemsHtml + '</div>' +
@@ -230,17 +247,18 @@ function renderCardRow(c, mode){
   if(isOverdue) badges.push('<span class="badge lent-overdue">Lange verliehen · ' + overdueDays + ' Tage</span>');
   if(c.saleStatus && c.saleStatus!=='frei') badges.push('<span class="badge sale">' + (c.saleStatus==='verkauft'?'Verkauft':'Zum Verkauf') + '</span>');
 
-  const qtyControl = isOffline ? '' : '' +
+  const qtyControl = (isOffline || selectionMode) ? '' : '' +
   '<div class="qty-control">' +
     '<button type="button" class="qty-btn" data-qty-minus="' + c.id + '">−</button>' +
     '<div class="qty">×' + (c.quantity||1) + '</div>' +
     '<button type="button" class="qty-btn" data-qty-plus="' + c.id + '">+</button>' +
   '</div>';
-  const qtyDisplayOffline = isOffline ? '<div class="qty mono" style="flex-shrink:0;">×' + (c.quantity||1) + '</div>' : '';
+  const qtyDisplayOffline = (isOffline && !selectionMode) ? '<div class="qty mono" style="flex-shrink:0;">×' + (c.quantity||1) + '</div>' : '';
+  const checkboxHtml = selectionMode ? '<input type="checkbox" class="select-checkbox" data-select="' + c.id + '" ' + (selectedIds.has(c.id)?'checked':'') + '>' : '';
 
   return '' +
-  '<div class="card-row' + (isOverdue?' overdue':'') + '"' + (isOffline ? '' : ' data-edit="' + c.id + '"') + '>' +
-    qtyControl + qtyDisplayOffline +
+  '<div class="card-row' + (isOverdue?' overdue':'') + '"' + ((isOffline||selectionMode) ? '' : ' data-edit="' + c.id + '"') + '>' +
+    checkboxHtml + qtyControl + qtyDisplayOffline +
     '<div class="info">' +
       '<div class="name">' + escapeHtml(c.name||'(ohne Namen)') + '</div>' +
       '<div class="meta">' + metaParts.join(' · ') + '</div>' +
