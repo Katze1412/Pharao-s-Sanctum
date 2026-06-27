@@ -11,6 +11,7 @@ function render(){
     renderBellFab();
   attachMainListeners();
   renderModal();
+  renderSettingsMenu();
   renderNoteModal();
 }
 
@@ -18,13 +19,17 @@ function renderTopbar(){
   return '' +
   '<div class="topbar">' +
     '<div style="display:flex;align-items:center;justify-content:space-between;">' +
-      '<h1><span class="eye"></span>Kartenarchiv</h1>' +
+      '<div style="display:flex;align-items:center;gap:8px;">' +
+        '<div class="title-cartouche"><span class="hiero hiero-eye">𓂀</span><h1>Pharao\'s Sanctum</h1></div>' +
+        '<button id="btn-settings" type="button" title="Einstellungen" class="settings-btn">⚙️</button>' +
+      '</div>' +
       '<button id="btn-logout" class="btn btn-secondary" type="button" style="width:auto;padding:6px 12px;font-size:12px;">Abmelden</button>' +
     '</div>' +
     '<div class="searchbar">' +
       '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>' +
       '<input id="search-input" type="text" placeholder="Karte, Set, Box, Person suchen…" value="' + escapeAttr(searchQuery) + '">' +
     '</div>' +
+    '<div class="hiero-rule">𓋹 𓋹 𓋹 𓋹 𓋹 𓋹 𓋹 𓋹 𓋹 𓋹 𓋹 𓋹 𓋹 𓋹 𓋹</div>' +
   '</div>';
 }
 
@@ -187,13 +192,13 @@ function renderSimpleList(list, mode){
 
 function renderEmpty(mode, showFab){
   const texts = {
-    sammlung: ["Noch keine Karten erfasst", "Tippe unten rechts auf + um die erste Karte hinzuzufügen."],
-    archetypen: ["Noch keine Archetypen erkannt", "Trage bei einer Karte ein Deck-Thema ein oder nutze \"Archetyp ermitteln\", dann erscheint sie hier gruppiert."],
-    verliehen: ["Aktuell ist nichts verliehen", "Markiere eine Karte als verliehen, dann erscheint sie hier."],
-    verkauf: ["Nichts zum Verkauf markiert", "Setze bei einer Karte den Verkaufsstatus, dann erscheint sie hier."]
+    sammlung: ["Noch keine Karten erfasst", "Tippe unten rechts auf + um die erste Karte hinzuzufügen.", "𓆣"],
+    archetypen: ["Noch keine Archetypen erkannt", "Trage bei einer Karte ein Deck-Thema ein oder nutze \"Archetyp ermitteln\", dann erscheint sie hier gruppiert.", "𓋹"],
+    verliehen: ["Aktuell ist nichts verliehen", "Markiere eine Karte als verliehen, dann erscheint sie hier.", "𓊝"],
+    verkauf: ["Nichts zum Verkauf markiert", "Setze bei einer Karte den Verkaufsstatus, dann erscheint sie hier.", "𓂧"]
   };
   const t = texts[mode];
-  return '<div class="empty-state"><h3>' + t[0] + '</h3><p>' + t[1] + '</p></div>' + (showFab ? renderFab() : '');
+  return '<div class="empty-state"><span class="hiero hiero-glyph">' + t[2] + '</span><h3>' + t[0] + '</h3><p>' + t[1] + '</p></div>' + (showFab ? renderFab() : '');
 }
 
 function renderCardRow(c, mode){

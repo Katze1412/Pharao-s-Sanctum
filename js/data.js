@@ -124,8 +124,15 @@ const DataLayer = {
     }
   }
 };
-async function persist(){
-  const ok = await DataLayer.saveAll(cards);
+async function persist(ids){
+  let toSave;
+  if(ids){
+    const idSet = new Set(Array.isArray(ids) ? ids : [ids]);
+    toSave = cards.filter(function(c){ return idSet.has(c.id); });
+  } else {
+    toSave = cards; // Fallback: volle Sammlung (nur falls ohne IDs aufgerufen)
+  }
+  const ok = await DataLayer.saveAll(toSave);
   if(ok) saveOfflineSnapshot();
   return ok;
 }

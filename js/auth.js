@@ -41,7 +41,7 @@ async function loadAppData(){
 function showLoginScreen(){
   document.getElementById('app').innerHTML = '' +
   '<div class="login-screen">' +
-    '<h1><span class="eye"></span>Kartenarchiv</h1>' +
+    '<div style="text-align:center;margin-bottom:16px;"><div class="title-cartouche"><span class="hiero hiero-eye">𓂀</span><h1>Pharao\'s Sanctum</h1></div></div>' +
     '<p class="hint" style="text-align:center;">Melde dich mit deiner E-Mail an, um auf deine Sammlung zuzugreifen — auf jedem Gerät.</p>' +
     '<div class="field"><input id="login-email" type="email" placeholder="deine@email.de"></div>' +
     '<button class="btn btn-primary" id="btn-magic-link" type="button">Magic Link senden</button>' +

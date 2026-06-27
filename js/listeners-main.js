@@ -6,7 +6,7 @@ async function adjustQuantity(id, delta){
   if(next < 1) return;
   cards[idx].quantity = next;
   render();
-  const ok = await persist();
+  const ok = await persist(id);
   if(!ok) showToast('Geändert im Browser, Sync fehlgeschlagen — bitte erneut versuchen');
 }
 /* ============================================================
@@ -15,6 +15,8 @@ async function adjustQuantity(id, delta){
 function attachMainListeners(){
   const logoutBtn = document.getElementById('btn-logout');
   if(logoutBtn){ logoutBtn.onclick = logout; }
+  const settingsBtn = document.getElementById('btn-settings');
+  if(settingsBtn){ settingsBtn.onclick = openSettingsMenu; }
   document.querySelectorAll('.tab').forEach(function(el){
     el.onclick = function(){ currentTab = el.getAttribute('data-tab'); render(); };
   });

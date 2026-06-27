@@ -22,6 +22,7 @@ let scanProgress = '';
 let scanAttempted = false;
 let isOffline = false;
 let offlineNoteModalOpen = false;
+let settingsMenuOpen = false;
 
 const RARITIES = ["Common","Rare","Super Rare","Ultra Rare","Secret Rare","Ultimate Rare","Ghost Rare","Starlight Rare","Andere"];
 const CONDITIONS = ["Wie neu","Sehr gut","Gut","Stark abgenutzt","Beschädigt"];

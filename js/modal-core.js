@@ -227,7 +227,7 @@ async function mergeDuplicateAndContinue(){
   const existing = cards[duplicateMatch];
   if(!existing){ duplicateMatch = null; renderModal(); return; }
   existing.quantity = (parseInt(existing.quantity)||1) + (parseInt(draft.quantity)||1);
-  const ok = await persist();
+  const ok = await persist(existing.id);
   duplicateMatch = null;
   render();
   draft = emptyDraft();
@@ -250,13 +250,17 @@ async function saveDraft(forceNew){
       return;
     }
   }
+  let savedId;
   if(editingId){
     const idx = cards.findIndex(function(c){ return c.id===editingId; });
     if(idx!==-1) cards[idx] = Object.assign({}, draft, {id: editingId});
+    savedId = editingId;
   } else {
-    cards.push(Object.assign({}, draft, {id: uid()}));
+    const newCard = Object.assign({}, draft, {id: uid()});
+    cards.push(newCard);
+    savedId = newCard.id;
   }
-  const ok = await persist();
+  const ok = await persist(savedId);
   duplicateMatch = null;
 
   if(editingId){
