@@ -93,12 +93,21 @@ function attachMainListeners(){
       const count = selectedIds.size;
       if(!window.confirm('Wirklich ' + count + ' Karte(n) dauerhaft löschen? Das kann nicht rückgängig gemacht werden.')) return;
       const ids = Array.from(selectedIds);
-      const ok = await DataLayer.deleteCards(ids);
-      cards = cards.filter(function(c){ return !selectedIds.has(c.id); });
-      selectedIds.clear();
+      selDeleteBtn.disabled = true;
+      selDeleteBtn.textContent = 'Lösche … (kann bei vielen Karten etwas dauern)';
+      const deletedIds = await DataLayer.deleteCards(ids);
+      const deletedSet = new Set(deletedIds);
+      cards = cards.filter(function(c){ return !deletedSet.has(c.id); });
+      deletedSet.forEach(function(id){ selectedIds.delete(id); });
       saveOfflineSnapshot();
       render();
-      showToast(ok ? count + ' Karte(n) gelöscht' : 'Im Browser entfernt, Sync teilweise fehlgeschlagen — bitte Seite neu laden und prüfen');
+      if(deletedIds.length === ids.length){
+        showToast(deletedIds.length + ' Karte(n) gelöscht');
+      } else if(deletedIds.length > 0){
+        showToast(deletedIds.length + ' von ' + ids.length + ' gelöscht — Rest ist noch ausgewählt, bitte erneut auf Löschen klicken');
+      } else {
+        showToast('Löschen fehlgeschlagen — bitte erneut versuchen');
+      }
     };
   }
 

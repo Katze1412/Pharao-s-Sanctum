@@ -78,15 +78,23 @@ const DataLayer = {
     }
   },
   async deleteCards(ids) {
-    if (!ids || ids.length === 0) return true;
-    try {
-      const { error } = await supabaseClient.from('cards').delete().in('id', ids);
-      if (error) { console.error('Löschfehler (mehrere)', error); return false; }
-      return true;
-    } catch (e) {
-      console.error('Löschfehler (mehrere)', e);
-      return false;
+    if (!ids || ids.length === 0) return [];
+    const CHUNK_SIZE = 150;
+    const deletedIds = [];
+    for (let i = 0; i < ids.length; i += CHUNK_SIZE) {
+      const batch = ids.slice(i, i + CHUNK_SIZE);
+      try {
+        const { error } = await supabaseClient.from('cards').delete().in('id', batch);
+        if (!error) {
+          deletedIds.push.apply(deletedIds, batch);
+        } else {
+          console.error('Löschfehler (Batch)', error);
+        }
+      } catch (e) {
+        console.error('Löschfehler (Batch)', e);
+      }
     }
+    return deletedIds;
   },
   async loadLocations() {
     try {
