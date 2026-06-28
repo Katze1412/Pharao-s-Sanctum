@@ -47,9 +47,18 @@ function rowToCard(r){
 const DataLayer = {
   async loadAll() {
     try {
-      const { data, error } = await supabaseClient.from('cards').select('*').order('created_at', { ascending: true });
-      if (error) { console.error('Ladefehler (Karten)', error); return []; }
-      return (data || []).map(rowToCard);
+      const PAGE_SIZE = 1000;
+      let allRows = [];
+      let from = 0;
+      while(true){
+        const { data, error } = await supabaseClient.from('cards').select('*').order('created_at', { ascending: true }).range(from, from + PAGE_SIZE - 1);
+        if (error) { console.error('Ladefehler (Karten)', error); break; }
+        if (!data || data.length === 0) break;
+        allRows = allRows.concat(data);
+        if (data.length < PAGE_SIZE) break;
+        from += PAGE_SIZE;
+      }
+      return allRows.map(rowToCard);
     } catch (e) {
       console.error('Ladefehler (Karten)', e);
       return [];

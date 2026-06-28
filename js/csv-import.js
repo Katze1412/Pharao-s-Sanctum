@@ -98,27 +98,31 @@ function attachCsvListeners(){
   };
 }
 
-function splitCsvLine(line){
-  const result = [];
+function parseCsvRows(text){
+  const rows = [];
+  let row = [];
   let cur = '';
   let inQuotes = false;
-  for(let i=0;i<line.length;i++){
-    const ch = line[i];
+  for(let i=0;i<text.length;i++){
+    const ch = text[i];
     if(inQuotes){
       if(ch === '"'){
-        if(line[i+1] === '"'){ cur += '"'; i++; }
+        if(text[i+1] === '"'){ cur += '"'; i++; }
         else { inQuotes = false; }
       } else {
         cur += ch;
       }
     } else {
       if(ch === '"'){ inQuotes = true; }
-      else if(ch === ','){ result.push(cur); cur=''; }
+      else if(ch === ','){ row.push(cur); cur=''; }
+      else if(ch === '\r'){ /* ignorieren, Zeilenende wird über \n erkannt */ }
+      else if(ch === '\n'){ row.push(cur); cur=''; rows.push(row); row=[]; }
       else { cur += ch; }
     }
   }
-  result.push(cur);
-  return result.map(function(c){ return c.trim(); });
+  // letzte Zeile abschließen, falls die Datei nicht mit Zeilenumbruch endet
+  if(cur.length>0 || row.length>0){ row.push(cur); rows.push(row); }
+  return rows.map(function(r){ return r.map(function(c){ return c.trim(); }); });
 }
 
 function splitSetCodeAndNumber(raw){
@@ -139,9 +143,11 @@ function splitSetCodeAndNumber(raw){
 }
 
 function parseCsv(text){
-  const lines = text.split(/\r?\n/).filter(function(l){ return l.trim().length>0; });
-  if(lines.length<2) return {rows:[]};
-  const headers = splitCsvLine(lines[0]).map(function(h){ return h.toLowerCase(); });
+  const allRows = parseCsvRows(text).filter(function(r){
+    return r.some(function(c){ return c.trim().length>0; });
+  });
+  if(allRows.length<2) return {rows:[]};
+  const headers = allRows[0].map(function(h){ return h.toLowerCase(); });
   const fieldMap = {
     name:'name', setcode:'setCode', 'set-kürzel':'setCode', set:'setCode',
     cardnumber:'cardNumber', kartennummer:'cardNumber', nummer:'cardNumber',
@@ -152,8 +158,8 @@ function parseCsv(text){
     archetype:'archetype', archetyp:'archetype', deckthema:'archetype', thema:'archetype'
   };
   const rows = [];
-  for(let i=1;i<lines.length;i++){
-    const cells = splitCsvLine(lines[i]);
+  for(let i=1;i<allRows.length;i++){
+    const cells = allRows[i];
     const row = {};
     headers.forEach(function(h, idx){
       const key = fieldMap[h];

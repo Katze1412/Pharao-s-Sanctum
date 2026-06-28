@@ -21,6 +21,11 @@ function renderSettingsMenu(){
     '<div class="modal" style="max-width:380px;">' +
       '<div class="modal-head"><h2>Einstellungen</h2><button class="modal-close" id="settingsmodal-close">×</button></div>' +
       '<button class="btn btn-secondary" id="settings-locations" type="button" style="margin-bottom:10px;">📦 Lagerorte verwalten</button>' +
+      '<div class="field" style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">' +
+        '<span style="flex:1;font-size:13px;">Als "lange verliehen" markieren nach</span>' +
+        '<input id="lent-threshold-input" type="number" min="1" value="' + settings.lentWarningDays + '" style="width:56px;background:var(--panel);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:4px 6px;text-align:center;">' +
+        '<span style="font-size:13px;">Tagen</span>' +
+      '</div>' +
       '<button class="btn btn-secondary" id="settings-selection" type="button" style="margin-bottom:10px;">🗑️ Mehrere Karten auswählen &amp; löschen</button>' +
       '<button class="btn btn-secondary" id="settings-backup-export" type="button" style="margin-bottom:10px;">⤓ Sammlung sichern (JSON)</button>' +
       '<button class="btn btn-secondary" id="settings-backup-import" type="button">⤒ Sicherung wiederherstellen</button>' +
@@ -32,6 +37,16 @@ function renderSettingsMenu(){
   document.getElementById('settingsmodal-overlay').onclick = function(e){ if(e.target.id==='settingsmodal-overlay') closeSettingsMenu(); };
   document.getElementById('settingsmodal-close').onclick = closeSettingsMenu;
   document.getElementById('settings-locations').onclick = function(){ closeSettingsMenu(); openLocManager(); };
+
+  const lentThresholdInput = document.getElementById('lent-threshold-input');
+  if(lentThresholdInput){
+    lentThresholdInput.onchange = function(e){
+      const val = parseInt(e.target.value, 10);
+      settings.lentWarningDays = (isNaN(val) || val < 1) ? 1 : val;
+      DataLayer.saveSettings(settings);
+      render();
+    };
+  }
   document.getElementById('settings-selection').onclick = function(){
     closeSettingsMenu();
     selectionMode = true;

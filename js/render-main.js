@@ -63,11 +63,18 @@ function matchesSearch(c){
 
 function renderSelectionBar(){
   if(!selectionMode) return '';
+  const locOptions = locations.map(function(l){ return '<option value="' + escapeAttr(l) + '">' + escapeHtml(l) + '</option>'; }).join('');
   return '' +
   '<div class="selection-bar">' +
     '<span>' + selectedIds.size + ' ausgewählt</span>' +
     '<button type="button" id="sel-all-visible" class="btn btn-secondary">Alle in Ansicht</button>' +
     '<button type="button" id="sel-clear" class="btn btn-secondary">Auswahl leeren</button>' +
+    '<select id="sel-move-target" style="width:auto;background:var(--panel);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:6px 8px;font-size:12.5px;">' +
+      '<option value="">– Lagerort –</option>' +
+      locOptions +
+      '<option value="__new__">➕ Neuer Lagerort…</option>' +
+    '</select>' +
+    '<button type="button" id="sel-move" class="btn btn-secondary" ' + (selectedIds.size===0?'disabled':'') + '>📦 Verschieben</button>' +
     '<button type="button" id="sel-delete" class="btn btn-danger" ' + (selectedIds.size===0?'disabled':'') + '>🗑️ Löschen (' + selectedIds.size + ')</button>' +
     '<button type="button" id="sel-cancel" class="btn btn-secondary">Fertig</button>' +
   '</div>';
@@ -196,14 +203,6 @@ function renderSimpleList(list, mode){
     return renderEmpty(mode, false);
   }
   let header = '<div class="groupbar"><span class="label">' + list.length + ' Eintrag' + (list.length===1?'':'e') + '</span></div>';
-  if(mode==='verliehen'){
-    header += '' +
-    '<div class="hint" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
-      '<span>Als "lange verliehen" markieren nach</span>' +
-      '<input id="lent-threshold-input" type="number" min="1" value="' + settings.lentWarningDays + '" style="width:56px;background:var(--panel);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:4px 6px;text-align:center;">' +
-      '<span>Tagen</span>' +
-    '</div>';
-  }
   return header + list.map(function(c){ return renderCardRow(c, mode); }).join('');
 }
 

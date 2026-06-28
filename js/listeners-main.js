@@ -46,15 +46,6 @@ function attachMainListeners(){
   document.querySelectorAll('[data-qty-minus]').forEach(function(el){
     el.onclick = function(e){ e.stopPropagation(); adjustQuantity(el.getAttribute('data-qty-minus'), -1); };
   });
-  const lentThresholdInput = document.getElementById('lent-threshold-input');
-  if(lentThresholdInput){
-    lentThresholdInput.onchange = function(e){
-      const val = parseInt(e.target.value, 10);
-      settings.lentWarningDays = (isNaN(val) || val < 1) ? 1 : val;
-      DataLayer.saveSettings(settings);
-      render();
-    };
-  }
   const fab = document.getElementById('fab-add');
   if(fab){ fab.onclick = function(){ openModalForNew(); }; }
   const fabNote = document.getElementById('fab-note');
@@ -86,6 +77,33 @@ function attachMainListeners(){
   if(selClearBtn){ selClearBtn.onclick = function(){ selectedIds.clear(); render(); }; }
   const selCancelBtn = document.getElementById('sel-cancel');
   if(selCancelBtn){ selCancelBtn.onclick = function(){ selectionMode = false; selectedIds.clear(); render(); }; }
+  const selMoveBtn = document.getElementById('sel-move');
+  if(selMoveBtn){
+    selMoveBtn.onclick = async function(){
+      if(selectedIds.size===0) return;
+      const select = document.getElementById('sel-move-target');
+      let target = select.value;
+      if(!target){ showToast('Bitte einen Lagerort auswählen'); return; }
+      if(target === '__new__'){
+        target = window.prompt('Name des neuen Lagerorts:');
+        if(!target || !target.trim()) return;
+        target = target.trim();
+        if(locations.indexOf(target)===-1){
+          locations.push(target);
+          await DataLayer.saveLocations(locations);
+        }
+      }
+      const ids = Array.from(selectedIds);
+      ids.forEach(function(id){
+        const card = cards.find(function(c){ return c.id===id; });
+        if(card) card.box = target;
+      });
+      await persist(ids);
+      render();
+      showToast(ids.length + ' Karte(n) nach "' + target + '" verschoben');
+    };
+  }
+
   const selDeleteBtn = document.getElementById('sel-delete');
   if(selDeleteBtn){
     selDeleteBtn.onclick = async function(){
