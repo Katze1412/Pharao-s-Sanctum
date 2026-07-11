@@ -43,7 +43,8 @@ function renderSettingsMenu(){
 
   document.getElementById('settingsmodal-overlay').onclick = function(e){ if(e.target.id==='settingsmodal-overlay') closeSettingsMenu(); };
   document.getElementById('settingsmodal-close').onclick = closeSettingsMenu;
-      const batchStatus = document.getElementById('batch-archetype-status');
+  const batchArchetypeBtn = document.getElementById('settings-batch-archetype');
+  const batchStatus = document.getElementById('batch-archetype-status');
       const batchText = document.getElementById('batch-archetype-text');
       const batchBar = document.getElementById('batch-archetype-bar');
       if(batchArchetypeBtn){
