@@ -30,6 +30,11 @@ function openModalForEdit(id){
 function closeModal(){
   modalOpen = false;
   document.getElementById('modal-root').innerHTML = '';
+  if(typeof window.__afterEditCallback === 'function'){
+    const cb = window.__afterEditCallback;
+    window.__afterEditCallback = null;
+    cb();
+  }
 }
 
 function renderModal(){
