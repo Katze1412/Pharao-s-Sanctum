@@ -25,11 +25,13 @@ window.onerror = function(msg, src, line, col, err){
   return true;
 };
 
-try {
-  const p = init();
-  if(p && typeof p.catch === 'function'){
-    p.catch(function(e){ showErrorScreen(e && e.message ? e.message : String(e)); });
+window.addEventListener('DOMContentLoaded', function(){
+  try {
+    const p = init();
+    if(p && typeof p.catch === 'function'){
+      p.catch(function(e){ showErrorScreen(e && e.message ? e.message : String(e)); });
+    }
+  } catch(e) {
+    showErrorScreen(e && e.message ? e.message : String(e));
   }
-} catch(e) {
-  showErrorScreen(e && e.message ? e.message : String(e));
-}
+});
