@@ -4,9 +4,10 @@
 let cards = [];
 let locations = [];
 let locModalOpen = false;
-let settings = { lentWarningDays: 30 };
+let settings = { lentWarningDays: 30, offlineNoteText: '', offlineNoteSavedAt: null };
 let currentTab = 'sammlung';      // sammlung | verliehen | verkauf
 let groupBy = 'set';              // set | box
+let filterNoArchetype = false;
 let sammlungView = 'uebersicht';  // uebersicht | archetypen
 let searchQuery = '';
 let collapsedGroups = {};

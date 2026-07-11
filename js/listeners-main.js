@@ -46,6 +46,9 @@ function attachMainListeners(){
   document.querySelectorAll('[data-qty-minus]').forEach(function(el){
     el.onclick = function(e){ e.stopPropagation(); adjustQuantity(el.getAttribute('data-qty-minus'), -1); };
   });
+  const filterNoArchBtn = document.getElementById('btn-filter-no-archetype');
+  if(filterNoArchBtn){ filterNoArchBtn.onclick = function(){ filterNoArchetype = !filterNoArchetype; render(); }; }
+
   const fab = document.getElementById('fab-add');
   if(fab){ fab.onclick = function(){ openModalForNew(); }; }
   const fabNote = document.getElementById('fab-note');

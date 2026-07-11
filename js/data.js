@@ -133,17 +133,21 @@ const DataLayer = {
     try {
       const { data, error } = await supabaseClient.from('settings').select('*').eq('user_id', currentUserId).maybeSingle();
       if (error || !data) return null;
-      return { lentWarningDays: data.lent_warning_days };
+      return {
+        lentWarningDays: data.lent_warning_days,
+        offlineNoteText: data.offline_note_text || '',
+        offlineNoteSavedAt: data.offline_note_saved_at || null
+      };
     } catch (e) {
       return null;
     }
   },
   async saveSettings(settingsObj) {
     try {
-      const { error } = await supabaseClient.from('settings').upsert(
-        { user_id: currentUserId, lent_warning_days: settingsObj.lentWarningDays },
-        { onConflict: 'user_id' }
-      );
+      const payload = { user_id: currentUserId, lent_warning_days: settingsObj.lentWarningDays };
+      if(settingsObj.offlineNoteText !== undefined) payload.offline_note_text = settingsObj.offlineNoteText || null;
+      if(settingsObj.offlineNoteSavedAt !== undefined) payload.offline_note_saved_at = settingsObj.offlineNoteSavedAt || null;
+      const { error } = await supabaseClient.from('settings').upsert(payload, { onConflict: 'user_id' });
       if (error) { console.error('Speicherfehler (Einstellungen)', error); return false; }
       return true;
     } catch (e) {

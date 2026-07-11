@@ -1,5 +1,5 @@
 -- ============================================================
--- YGO Kartenarchiv — Supabase Schema
+-- Pharao's Sanctum — Supabase Schema
 -- Diesen kompletten Inhalt im Supabase SQL-Editor ausführen
 -- (Dashboard → SQL Editor → New query → einfügen → Run)
 -- ============================================================
@@ -38,7 +38,9 @@ create table if not exists locations (
 -- Tabelle: Einstellungen (1 Zeile pro Nutzer)
 create table if not exists settings (
   user_id uuid primary key references auth.users(id) on delete cascade,
-  lent_warning_days integer default 30
+  lent_warning_days integer default 30,
+  offline_note_text text,
+  offline_note_saved_at timestamptz
 );
 
 -- Row-Level-Security aktivieren — jeder sieht/bearbeitet nur seine eigenen Daten

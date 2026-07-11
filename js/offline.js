@@ -23,28 +23,37 @@ function loadOfflineSnapshot(){
 }
 
 function saveOfflineNote(text){
+  const trimmed = text ? text.trim() : '';
+  settings.offlineNoteText = trimmed;
+  settings.offlineNoteSavedAt = trimmed ? new Date().toISOString() : null;
   try{
-    if(!text || !text.trim()){
+    if(trimmed){
+      localStorage.setItem(OFFLINE_NOTE_KEY, JSON.stringify({ text: trimmed, savedAt: settings.offlineNoteSavedAt }));
+    } else {
       localStorage.removeItem(OFFLINE_NOTE_KEY);
-      return;
     }
-    localStorage.setItem(OFFLINE_NOTE_KEY, JSON.stringify({ text: text.trim(), savedAt: new Date().toISOString() }));
   } catch(e){
-    console.error('Notiz konnte nicht gespeichert werden', e);
+    console.error('Notiz-Puffer konnte nicht gespeichert werden', e);
+  }
+  if(!isOffline && currentUserId){
+    DataLayer.saveSettings(settings);
   }
 }
 
 function loadOfflineNote(){
-  try{
-    const raw = localStorage.getItem(OFFLINE_NOTE_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch(e){
-    return null;
+  if(settings.offlineNoteText){
+    return { text: settings.offlineNoteText, savedAt: settings.offlineNoteSavedAt };
   }
+  return null;
 }
 
 function clearOfflineNote(){
+  settings.offlineNoteText = '';
+  settings.offlineNoteSavedAt = null;
   try{ localStorage.removeItem(OFFLINE_NOTE_KEY); } catch(e){}
+  if(!isOffline && currentUserId){
+    DataLayer.saveSettings(settings);
+  }
 }
 
 function initOfflineHandling(){
@@ -64,14 +73,38 @@ function handleGoOffline(){
     locations = snap.locations || [];
     if(snap.settings) settings = snap.settings;
   }
+  // Eine bereits offline geschriebene, noch nicht synchronisierte Notiz hat Vorrang vor dem alten Snapshot-Stand
+  try{
+    const raw = localStorage.getItem(OFFLINE_NOTE_KEY);
+    if(raw){
+      const pending = JSON.parse(raw);
+      if(pending && pending.text){
+        settings.offlineNoteText = pending.text;
+        settings.offlineNoteSavedAt = pending.savedAt;
+      }
+    }
+  } catch(e){}
   render();
 }
 
 async function handleGoOnline(){
   if(!isOffline) return;
   isOffline = false;
+  let pendingNote = null;
+  try{
+    const raw = localStorage.getItem(OFFLINE_NOTE_KEY);
+    pendingNote = raw ? JSON.parse(raw) : null;
+  } catch(e){}
   if(currentUserId){
     await loadAppData();
+    if(pendingNote && pendingNote.text){
+      // Lokal geschriebene Notiz ist neuer als der evtl. veraltete Serverstand — jetzt hochladen
+      settings.offlineNoteText = pendingNote.text;
+      settings.offlineNoteSavedAt = pendingNote.savedAt;
+      await DataLayer.saveSettings(settings);
+      try{ localStorage.removeItem(OFFLINE_NOTE_KEY); } catch(e){}
+      render();
+    }
   } else {
     render();
   }

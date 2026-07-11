@@ -102,9 +102,11 @@ function renderSammlung(){
 }
 
 function renderSammlungUebersicht(){
-  const filtered = cards.filter(matchesSearch);
+  let filtered = cards.filter(matchesSearch);
+  if(filterNoArchetype) filtered = filtered.filter(function(c){ return !c.archetype || !c.archetype.trim(); });
   lastFilteredIds = filtered.map(function(c){ return c.id; });
   const totalValue = filtered.reduce(function(sum,c){ return sum + (parseFloat(c.value)||0) * (parseInt(c.quantity)||1); }, 0);
+  const noArchCount = cards.filter(matchesSearch).filter(function(c){ return !c.archetype || !c.archetype.trim(); }).length;
 
   const groupbar = '' +
   '<div class="groupbar">' +
@@ -113,6 +115,7 @@ function renderSammlungUebersicht(){
       '<button data-group="set" class="' + (groupBy==='set'?'active':'') + '">Set-Kürzel</button>' +
       '<button data-group="box" class="' + (groupBy==='box'?'active':'') + '">Lagerort</button>' +
     '</div>' +
+    (noArchCount > 0 ? '<button id="btn-filter-no-archetype" class="' + (filterNoArchetype?'btn btn-danger':'btn btn-secondary') + '" style="width:auto;padding:5px 10px;font-size:12px;" type="button">' + (filterNoArchetype ? '✕ Filter aufheben' : '⚠️ Ohne Archetyp (' + noArchCount + ')') + '</button>' : '') +
   '</div>';
 
   const stats = '' +
