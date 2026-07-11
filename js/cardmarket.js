@@ -7,22 +7,39 @@ async function fetchYgoCard(name){
       let data;
       try{ data = JSON.parse(raw); } catch(e){ return null; }
       if(!data || !data.data || data.data.length===0) return null;
-      // Bei mehreren Treffern (fname-Fuzzy-Suche): exakte Namens-Übereinstimmung bevorzugen
       const exact = data.data.find(function(c){ return c.name.toLowerCase() === cleanName.toLowerCase(); });
       return exact || data.data[0];
     } catch(e){
       return null;
     }
   }
-  // 1. Exakte Suche (schnell & präzise, wenn Name 1:1 übereinstimmt)
+
+  // 1. Exakte Suche auf Deutsch
   let card = await tryUrl('https://db.ygoprodeck.com/api/v7/cardinfo.php?name=' + encodeURIComponent(cleanName) + '&language=de');
-  // 2. Unscharfe Suche auf Deutsch (toleriert Schreibweise-Abweichungen)
+  if(card && card.archetype) return card;
+
+  // 2. Fuzzy-Suche auf Deutsch
   if(!card) card = await tryUrl('https://db.ygoprodeck.com/api/v7/cardinfo.php?fname=' + encodeURIComponent(cleanName) + '&language=de');
-  // 3. Exakte Suche auf Englisch
-  if(!card) card = await tryUrl('https://db.ygoprodeck.com/api/v7/cardinfo.php?name=' + encodeURIComponent(cleanName));
-  // 4. Unscharfe Suche auf Englisch
-  if(!card) card = await tryUrl('https://db.ygoprodeck.com/api/v7/cardinfo.php?fname=' + encodeURIComponent(cleanName));
-  return card;
+
+  // 3. Falls DE-Suche die Karte gefunden hat aber kein Archetyp vorhanden:
+  //    englischen Namen aus dem DE-Ergebnis holen und damit EN-Datenbank anfragen
+  if(card && !card.archetype && card.name){
+    const enName = card.name;
+    const enCard = await tryUrl('https://db.ygoprodeck.com/api/v7/cardinfo.php?name=' + encodeURIComponent(enName));
+    if(enCard && enCard.archetype) return enCard;
+    if(!enCard){
+      const enFuzzy = await tryUrl('https://db.ygoprodeck.com/api/v7/cardinfo.php?fname=' + encodeURIComponent(enName));
+      if(enFuzzy) return enFuzzy;
+    }
+  }
+
+  // 4. DE-Suche hat gar nichts gefunden: direkt englisch versuchen (letzter Fallback)
+  if(!card){
+    card = await tryUrl('https://db.ygoprodeck.com/api/v7/cardinfo.php?name=' + encodeURIComponent(cleanName));
+    if(!card) card = await tryUrl('https://db.ygoprodeck.com/api/v7/cardinfo.php?fname=' + encodeURIComponent(cleanName));
+  }
+
+  return card || null;
 }
 
 async function fetchArchetype(){
@@ -51,6 +68,46 @@ async function fetchArchetype(){
     console.error('Archetyp-Suche fehlgeschlagen', e);
     statusEl.textContent = 'Archetyp konnte nicht ermittelt werden. Bitte manuell eintragen.';
   }
+}
+
+async function batchFetchArchetypes(onProgress){
+  const DELAY_MS = 300; // API-Rate-Limit schonen
+  const todo = cards.filter(function(c){ return c.name && c.name.trim(); });
+  let updated = 0;
+  let notFound = 0;
+  const updatedIds = [];
+
+  for(let i=0; i<todo.length; i++){
+    const c = todo[i];
+    if(onProgress) onProgress(i+1, todo.length, updated);
+    try{
+      const apiCard = await fetchYgoCard(c.name.trim());
+      if(apiCard && apiCard.archetype){
+        const newArchetype = apiCard.archetype;
+        // Nur updaten wenn leer ODER abweichend (normalisiert auf englisch)
+        if(!c.archetype || c.archetype.trim() !== newArchetype){
+          const idx = cards.findIndex(function(x){ return x.id===c.id; });
+          if(idx!==-1){
+            cards[idx].archetype = newArchetype;
+            updatedIds.push(c.id);
+            updated++;
+          }
+        }
+      } else {
+        notFound++;
+      }
+    } catch(e){
+      notFound++;
+    }
+    // Kurze Pause um API nicht zu überlasten
+    await new Promise(function(r){ setTimeout(r, DELAY_MS); });
+  }
+
+  // Alle geänderten Karten in Batches speichern
+  if(updatedIds.length > 0){
+    await persist(updatedIds);
+  }
+  return { updated, notFound, total: todo.length };
 }
 
 async function fetchCardmarketPrice(){

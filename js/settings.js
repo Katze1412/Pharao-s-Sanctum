@@ -20,6 +20,8 @@ function renderSettingsMenu(){
   '<div class="modal-overlay" id="settingsmodal-overlay" style="z-index:70;">' +
     '<div class="modal" style="max-width:380px;">' +
       '<div class="modal-head"><h2>Einstellungen</h2><button class="modal-close" id="settingsmodal-close">×</button></div>' +
+      '<button class="btn btn-secondary" id="settings-batch-archetype" type="button" style="margin-bottom:10px;">🔍 Alle Archetypen automatisch ermitteln</button>' +
+      '<div id="batch-archetype-status" class="hint" style="margin-bottom:10px;display:none;"></div>' +
       '<button class="btn btn-secondary" id="settings-locations" type="button" style="margin-bottom:10px;">📦 Lagerorte verwalten</button>' +
       '<div class="field" style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">' +
         '<span style="flex:1;font-size:13px;">Als "lange verliehen" markieren nach</span>' +
@@ -36,6 +38,23 @@ function renderSettingsMenu(){
 
   document.getElementById('settingsmodal-overlay').onclick = function(e){ if(e.target.id==='settingsmodal-overlay') closeSettingsMenu(); };
   document.getElementById('settingsmodal-close').onclick = closeSettingsMenu;
+  const batchArchetypeBtn = document.getElementById('settings-batch-archetype');
+  const batchStatus = document.getElementById('batch-archetype-status');
+  if(batchArchetypeBtn){
+    batchArchetypeBtn.onclick = async function(){
+      if(!window.confirm('Archetypen für alle ' + cards.length + ' Karten automatisch ermitteln?\n\nDas dauert ca. ' + Math.ceil(cards.length * 0.3 / 60) + ' Minuten. Bitte die App offen lassen.')) return;
+      batchArchetypeBtn.disabled = true;
+      batchStatus.style.display = '';
+      batchStatus.textContent = 'Starte…';
+      const result = await batchFetchArchetypes(function(current, total, updated){
+        batchStatus.textContent = current + ' / ' + total + ' verarbeitet, ' + updated + ' aktualisiert…';
+      });
+      batchArchetypeBtn.disabled = false;
+      batchStatus.textContent = '✅ Fertig: ' + result.updated + ' Archetypen aktualisiert, ' + result.notFound + ' nicht gefunden (bitte manuell nachtragen).';
+      render();
+    };
+  }
+
   document.getElementById('settings-locations').onclick = function(){ closeSettingsMenu(); openLocManager(); };
 
   const lentThresholdInput = document.getElementById('lent-threshold-input');
