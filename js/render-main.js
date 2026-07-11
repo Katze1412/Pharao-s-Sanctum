@@ -173,9 +173,14 @@ function renderArchetypenView(){
   }
 
   const groups = {};
+  const groupDisplayName = {};
   filtered.forEach(function(c){
-    const key = c.archetype.trim();
-    if(!groups[key]) groups[key] = [];
+    const raw = c.archetype.trim();
+    const key = raw.toLowerCase();
+    if(!groups[key]){
+      groups[key] = [];
+      groupDisplayName[key] = raw;
+    }
     groups[key].push(c);
   });
 
@@ -188,7 +193,7 @@ function renderArchetypenView(){
     return '' +
     '<div class="group' + (isCollapsed?' collapsed':'') + '" data-groupkey="' + escapeAttr(gkey) + '">' +
       '<div class="group-header" data-toggle-group="' + escapeAttr(gkey) + '">' +
-        '<div><span class="title">' + escapeHtml(key) + '</span><span class="sub">' + list.length + ' Eintrag' + (list.length===1?'':'e') + '</span></div>' +
+        '<div><span class="title">' + escapeHtml(groupDisplayName[key]) + '</span><span class="sub">' + list.length + ' Eintrag' + (list.length===1?'':'e') + '</span></div>' +
         '<svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>' +
       '</div>' +
       '<div class="group-items">' + itemsHtml + '</div>' +
