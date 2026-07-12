@@ -49,15 +49,29 @@ function renderSettingsMenu(){
       const batchBar = document.getElementById('batch-archetype-bar');
       if(batchArchetypeBtn){
         batchArchetypeBtn.onclick = async function(){
-          if(!window.confirm('Archetypen für alle ' + cards.length + ' Karten automatisch ermitteln?\n\nDas dauert ca. ' + Math.ceil(cards.length * 0.3 / 60) + ' Minuten. Bitte die App offen lassen.')) return;
+          if(!window.confirm('Archetypen für alle ' + cards.length + ' Karten automatisch ermitteln?\n\nDas kann je nach Sammlung 10-25 Minuten dauern. Bitte die App offen lassen.')) return;
           batchArchetypeBtn.disabled = true;
           batchStatus.style.display = '';
           batchText.textContent = 'Starte…';
           batchBar.style.width = '0%';
+          const startTime = Date.now();
           const result = await batchFetchArchetypes(function(current, total, updated){
             const pct = Math.round(current/total*100);
             batchBar.style.width = pct + '%';
-            batchText.textContent = current + ' / ' + total + ' verarbeitet, ' + updated + ' aktualisiert…';
+            const elapsed = (Date.now() - startTime) / 1000;
+            const avgPerCard = elapsed / current;
+            const remaining = Math.round(avgPerCard * (total - current));
+            let timeStr = '';
+            if(current > 5){
+              if(remaining >= 60){
+                const mins = Math.floor(remaining/60);
+                const secs = remaining % 60;
+                timeStr = ' · noch ca. ' + mins + 'm ' + secs + 's';
+              } else {
+                timeStr = ' · noch ca. ' + remaining + 's';
+              }
+            }
+            batchText.textContent = current + ' / ' + total + ' verarbeitet, ' + updated + ' aktualisiert' + timeStr + '…';
           });
           batchBar.style.width = '100%';
           batchArchetypeBtn.disabled = false;
