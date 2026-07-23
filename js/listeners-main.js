@@ -46,11 +46,25 @@ function attachMainListeners(){
   document.querySelectorAll('[data-qty-minus]').forEach(function(el){
     el.onclick = function(e){ e.stopPropagation(); adjustQuantity(el.getAttribute('data-qty-minus'), -1); };
   });
+  document.querySelectorAll('[data-folder]').forEach(function(el){
+    el.onclick = function(){ openFolderId = el.getAttribute('data-folder'); render(); };
+  });
+  const backBtn = document.getElementById('btn-folder-back');
+  if(backBtn){ backBtn.onclick = function(){ openFolderId = null; render(); }; }
+
   const filterNoArchBtn = document.getElementById('btn-filter-no-archetype');
   if(filterNoArchBtn){ filterNoArchBtn.onclick = function(){ filterNoArchetype = !filterNoArchetype; render(); }; }
 
   const fab = document.getElementById('fab-add');
   if(fab){ fab.onclick = function(){ openModalForNew(); }; }
+  const fabNewDeck = document.getElementById('fab-new-deck');
+  if(fabNewDeck){ fabNewDeck.onclick = function(){
+    const newDeck = emptyDeck();
+    decks.unshift(newDeck);
+    currentDeckId = newDeck.id;
+    deckSubtab = 'suchen';
+    render();
+  }; }
   const fabNote = document.getElementById('fab-note');
   if(fabNote){ fabNote.onclick = function(){ openNoteModal(); }; }
   const fabBell = document.getElementById('fab-bell');

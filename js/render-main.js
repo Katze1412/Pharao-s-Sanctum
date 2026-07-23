@@ -10,6 +10,7 @@ function render(){
     renderTabContent() +
     renderBellFab();
   attachMainListeners();
+  if(currentTab === 'decks') attachDeckListeners();
   renderModal();
   renderSettingsMenu();
   renderNoteModal();
@@ -36,8 +37,11 @@ function renderTopbar(){
 function renderTabs(){
   const lentCount = cards.filter(c=>c.isLent).length;
   const saleCount = cards.filter(c=>c.saleStatus && c.saleStatus!=='frei').length;
+  const folderCount = (settings.folderVisible||[]).length;
   const tabDef = [
     {id:'sammlung', label:'Sammlung', count: cards.length},
+    {id:'ordner', label:'Ordner', count: folderCount},
+    {id:'decks', label:'Decks', count: decks.length},
     {id:'verliehen', label:'Verliehen', count: lentCount},
     {id:'verkauf', label:'Zum Verkauf', count: saleCount}
   ];
@@ -50,6 +54,8 @@ function renderTabs(){
 
 function renderTabContent(){
   if(currentTab==='sammlung') return renderSammlung();
+  if(currentTab==='ordner') return renderOrdnerView();
+  if(currentTab==='decks') return currentDeckId ? renderDeckEditor() : renderDeckListView();
   if(currentTab==='verliehen') return renderSimpleList(cards.filter(c=>c.isLent), 'verliehen');
   return renderSimpleList(cards.filter(c=>c.saleStatus && c.saleStatus!=='frei'), 'verkauf');
 }
@@ -80,10 +86,54 @@ function renderSelectionBar(){
   '</div>';
 }
 
+function renderOrdnerView(){
+  const visible = settings.folderVisible || [];
+  const order = settings.folderOrder || [];
+
+  if(visible.length === 0){
+    return '<div class="empty-state"><span class="hiero hiero-glyph">𓂧</span><h3>Keine Ordner konfiguriert</h3><p>Lege in den Einstellungen (⚙️) fest, welche Lagerorte hier als Ordner erscheinen sollen.</p></div>';
+  }
+
+  // Reihenfolge: erst geordnete, dann alle anderen sichtbaren
+  const ordered = order.filter(function(l){ return visible.indexOf(l) !== -1; });
+  visible.forEach(function(l){ if(ordered.indexOf(l) === -1) ordered.push(l); });
+
+  // Wenn ein Ordner geöffnet ist
+  if(openFolderId && visible.indexOf(openFolderId) !== -1){
+    const folderCards = cards.filter(function(c){ return c.box === openFolderId; });
+    const listHtml = folderCards.length === 0
+      ? '<div class="empty-state"><p>Dieser Ordner ist leer.</p></div>'
+      : folderCards.map(function(c){ return renderCardRow(c); }).join('');
+    return '' +
+    '<div style="padding:12px 14px 0;">' +
+      '<button type="button" id="btn-folder-back" style="background:none;border:none;color:var(--gold-bright);font-size:14px;cursor:pointer;padding:0;display:flex;align-items:center;gap:6px;">← Alle Ordner</button>' +
+    '</div>' +
+    '<div class="groupbar"><span class="label">' + escapeHtml(openFolderId) + ' · ' + folderCards.length + ' Karte' + (folderCards.length===1?'':'n') + '</span></div>' +
+    listHtml +
+    renderFab();
+  }
+
+  // Kacheln-Ansicht
+  const tilesHtml = ordered.map(function(loc){
+    const count = cards.filter(function(c){ return c.box === loc; }).length;
+    return '' +
+    '<div class="folder-tile" data-folder="' + escapeAttr(loc) + '">' +
+      '<div class="folder-icon">𓂧</div>' +
+      '<div class="folder-name">' + escapeHtml(loc) + '</div>' +
+      '<div class="folder-count">' + count + ' Karte' + (count===1?'':'n') + '</div>' +
+    '</div>';
+  }).join('');
+
+  return '<div class="folder-grid">' + tilesHtml + '</div>' + renderFab();
+}
+
 function renderFab(){
   if(selectionMode) return '';
   if(isOffline){
     return '<div class="fab" id="fab-note" title="Notiz hinterlassen">📝</div>';
+  }
+  if(currentTab === 'decks' && !currentDeckId){
+    return '<div class="fab" id="fab-new-deck">+</div>';
   }
   return '<div class="fab" id="fab-add">+</div>';
 }

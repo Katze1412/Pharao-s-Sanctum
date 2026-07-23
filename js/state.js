@@ -4,7 +4,15 @@
 let cards = [];
 let locations = [];
 let locModalOpen = false;
-let settings = { lentWarningDays: 30, offlineNoteText: '', offlineNoteSavedAt: null };
+let settings = { lentWarningDays: 30, offlineNoteText: '', offlineNoteSavedAt: null, folderOrder: [], folderVisible: [] };
+let openFolderId = null;
+let decks = [];
+let currentDeckId = null;
+let deckSubtab = 'suchen';
+let deckSearchQuery = '';
+let deckSearchResults = [];
+let deckSearchLoading = false;
+let deckBanlist = 'tcg'; // aktuell geöffneter Ordner im Ordner-Reiter
 let currentTab = 'sammlung';      // sammlung | verliehen | verkauf
 let groupBy = 'set';              // set | box
 let filterNoArchetype = false;

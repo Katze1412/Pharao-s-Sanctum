@@ -1,5 +1,5 @@
 /* ============================================================
-   EINSTELLUNGEN — Zahnrad-Menü: Lagerorte, Backup-Export/Import
+   SETTINGS — Einstellungsmenü (Rendering + Listener)
    ============================================================ */
 function openSettingsMenu(){
   settingsMenuOpen = true;
@@ -27,6 +27,7 @@ function renderSettingsMenu(){
           '<div id="batch-archetype-bar" style="height:8px;background:linear-gradient(90deg,var(--gold),var(--gold-bright));border-radius:4px;width:0%;transition:width .3s;"></div>' +
         '</div>' +
       '</div>' +
+      '<button class="btn btn-secondary" id="settings-folders" type="button" style="margin-bottom:10px;">📁 Ordner-Reiter verwalten</button>' +
       '<button class="btn btn-secondary" id="settings-locations" type="button" style="margin-bottom:10px;">📦 Lagerorte verwalten</button>' +
       '<div class="field" style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">' +
         '<span style="flex:1;font-size:13px;">Als "lange verliehen" markieren nach</span>' +
@@ -37,58 +38,65 @@ function renderSettingsMenu(){
       '<button class="btn btn-secondary" id="settings-backup-export" type="button" style="margin-bottom:10px;">⤓ Sammlung sichern (JSON)</button>' +
       '<button class="btn btn-secondary" id="settings-backup-import" type="button">⤒ Sicherung wiederherstellen</button>' +
       '<input type="file" id="settings-backup-file" accept="application/json" style="display:none">' +
-      '<div class="hint" style="margin-top:12px;">Backup speichert deine komplette Sammlung als Datei — gut für den Notfall, falls mal was schiefgeht.</div>' +
+      '<div class="hint" style="margin-top:12px;">Backup speichert deine komplette Sammlung als Datei — gut für den Notfall.</div>' +
     '</div>' +
   '</div>';
 
   document.getElementById('settingsmodal-overlay').onclick = function(e){ if(e.target.id==='settingsmodal-overlay') closeSettingsMenu(); };
   document.getElementById('settingsmodal-close').onclick = closeSettingsMenu;
+
+  // Batch Archetyp
   const batchArchetypeBtn = document.getElementById('settings-batch-archetype');
   const batchStatus = document.getElementById('batch-archetype-status');
-      const batchText = document.getElementById('batch-archetype-text');
-      const batchBar = document.getElementById('batch-archetype-bar');
-      if(batchArchetypeBtn){
-        batchArchetypeBtn.onclick = async function(){
-          if(!window.confirm('Archetypen für alle ' + cards.length + ' Karten automatisch ermitteln?\n\nDas kann je nach Sammlung 10-25 Minuten dauern. Bitte die App offen lassen.')) return;
-          batchArchetypeBtn.disabled = true;
-          batchStatus.style.display = '';
-          batchText.textContent = 'Starte…';
-          batchBar.style.width = '0%';
-          const startTime = Date.now();
-          const result = await batchFetchArchetypes(function(current, total, updated){
-            const pct = Math.round(current/total*100);
-            batchBar.style.width = pct + '%';
-            const elapsed = (Date.now() - startTime) / 1000;
-            const avgPerCard = elapsed / current;
-            const remaining = Math.round(avgPerCard * (total - current));
-            let timeStr = '';
-            if(current > 5){
-              if(remaining >= 60){
-                const mins = Math.floor(remaining/60);
-                const secs = remaining % 60;
-                timeStr = ' · noch ca. ' + mins + 'm ' + secs + 's';
-              } else {
-                timeStr = ' · noch ca. ' + remaining + 's';
-              }
-            }
-            batchText.textContent = current + ' / ' + total + ' verarbeitet, ' + updated + ' aktualisiert' + timeStr + '…';
-          });
-          batchBar.style.width = '100%';
-          batchArchetypeBtn.disabled = false;
-          batchText.textContent = '✅ Fertig!';
-          render();
-          // Ergebnis-Modal öffnen falls Karten ohne Archetyp übrig sind
-          const missing = cards.filter(function(c){ return !c.archetype || !c.archetype.trim(); });
-          if(missing.length > 0){
-            openMissingArchetypeModal(missing, result);
+  const batchText = document.getElementById('batch-archetype-text');
+  const batchBar = document.getElementById('batch-archetype-bar');
+  if(batchArchetypeBtn){
+    batchArchetypeBtn.onclick = async function(){
+      if(!window.confirm('Archetypen für alle ' + cards.length + ' Karten automatisch ermitteln?\n\nDas kann je nach Sammlung 10-25 Minuten dauern. Bitte die App offen lassen.')) return;
+      batchArchetypeBtn.disabled = true;
+      batchStatus.style.display = '';
+      batchText.textContent = 'Starte…';
+      batchBar.style.width = '0%';
+      const startTime = Date.now();
+      const result = await batchFetchArchetypes(function(current, total, updated){
+        const pct = Math.round(current/total*100);
+        batchBar.style.width = pct + '%';
+        const elapsed = (Date.now() - startTime) / 1000;
+        const avgPerCard = elapsed / current;
+        const remaining = Math.round(avgPerCard * (total - current));
+        let timeStr = '';
+        if(current > 5){
+          if(remaining >= 60){
+            const mins = Math.floor(remaining/60);
+            const secs = remaining % 60;
+            timeStr = ' · noch ca. ' + mins + 'm ' + secs + 's';
           } else {
-            showToast(result.updated + ' Archetypen aktualisiert – alle Karten haben jetzt einen Archetyp! 🎉');
+            timeStr = ' · noch ca. ' + remaining + 's';
           }
-        };
+        }
+        batchText.textContent = current + ' / ' + total + ' verarbeitet, ' + updated + ' aktualisiert' + timeStr + '…';
+      });
+      batchBar.style.width = '100%';
+      batchArchetypeBtn.disabled = false;
+      batchText.textContent = '✅ Fertig!';
+      render();
+      const missing = cards.filter(function(c){ return !c.archetype || !c.archetype.trim(); });
+      if(missing.length > 0){
+        openMissingArchetypeModal(missing, result);
+      } else {
+        showToast(result.updated + ' Archetypen aktualisiert – alle Karten haben jetzt einen Archetyp! 🎉');
       }
+    };
+  }
 
+  // Ordner
+  const foldersBtn = document.getElementById('settings-folders');
+  if(foldersBtn){ foldersBtn.onclick = function(){ closeSettingsMenu(); openFolderSettingsModal(); }; }
+
+  // Lagerorte
   document.getElementById('settings-locations').onclick = function(){ closeSettingsMenu(); openLocManager(); };
 
+  // Verliehen-Schwelle
   const lentThresholdInput = document.getElementById('lent-threshold-input');
   if(lentThresholdInput){
     lentThresholdInput.onchange = function(e){
@@ -98,6 +106,8 @@ function renderSettingsMenu(){
       render();
     };
   }
+
+  // Massenauswahl
   document.getElementById('settings-selection').onclick = function(){
     closeSettingsMenu();
     selectionMode = true;
@@ -105,8 +115,9 @@ function renderSettingsMenu(){
     currentTab = 'sammlung';
     render();
   };
-  document.getElementById('settings-backup-export').onclick = exportBackup;
 
+  // Backup
+  document.getElementById('settings-backup-export').onclick = exportBackup;
   const importBtn = document.getElementById('settings-backup-import');
   const importInput = document.getElementById('settings-backup-file');
   importBtn.onclick = function(){ importInput.click(); };
@@ -115,7 +126,6 @@ function renderSettingsMenu(){
     if(file) importBackup(file);
   };
 }
-
 
 function openMissingArchetypeModal(missing, result){
   closeSettingsMenu();
@@ -168,46 +178,4 @@ function openMissingArchetypeModal(missing, result){
       };
     };
   });
-}
-
-function exportBackup(){
-  const payload = { cards: cards, locations: locations, settings: settings };
-  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'ygo-kartenarchiv-backup-' + new Date().toISOString().slice(0,10) + '.json';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  showToast('Sicherung wird heruntergeladen');
-}
-
-function importBackup(file){
-  const reader = new FileReader();
-  reader.onload = async function(){
-    try{
-      const parsed = JSON.parse(reader.result);
-      if(Array.isArray(parsed)){
-        cards = parsed;
-      } else if(parsed && Array.isArray(parsed.cards)){
-        cards = parsed.cards;
-        if(Array.isArray(parsed.locations)) locations = parsed.locations;
-        if(parsed.settings && typeof parsed.settings.lentWarningDays === 'number') settings = parsed.settings;
-      } else {
-        throw new Error('unbekanntes Format');
-      }
-      const ok1 = await persist();
-      const ok2 = await DataLayer.saveLocations(locations);
-      const ok3 = await DataLayer.saveSettings(settings);
-      closeSettingsMenu();
-      render();
-      showToast((ok1 && ok2 && ok3) ? 'Sicherung wiederhergestellt' : 'Wiederherstellt im Browser, Sync teilweise fehlgeschlagen — bitte erneut versuchen');
-    } catch(e){
-      console.error('Wiederherstellung fehlgeschlagen', e);
-      showToast('Datei konnte nicht gelesen werden — ist es eine gültige Sicherung?');
-    }
-  };
-  reader.readAsText(file);
 }

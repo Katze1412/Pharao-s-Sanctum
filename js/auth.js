@@ -30,6 +30,7 @@ async function init(){
 async function loadAppData(){
   cards = await DataLayer.loadAll();
   locations = await DataLayer.loadLocations();
+  decks = await DeckLayer.loadAll();
   const loadedSettings = await DataLayer.loadSettings();
   if(loadedSettings && typeof loadedSettings.lentWarningDays === 'number'){
     settings = loadedSettings;

@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Pharao's Sanctum</title>
+<link rel="icon" href="favicon.ico" type="image/x-icon">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0d0a06">
 <style>
@@ -84,6 +85,20 @@ h1,h2,h3{font-family:'Cinzel',serif;letter-spacing:.5px;margin:0;}
   color:var(--gold);opacity:.3;margin-top:14px;
   white-space:nowrap;overflow:hidden;
 }
+
+/* Ordner-Reiter */
+.folder-grid{
+  display:grid;grid-template-columns:repeat(2,1fr);gap:12px;
+  padding:14px;
+}
+.folder-tile{
+  background:var(--panel);border:1px solid var(--border);border-radius:12px;
+  padding:16px 12px;text-align:center;cursor:pointer;transition:.15s;
+}
+.folder-tile:hover{border-color:var(--gold);background:var(--panel-2);}
+.folder-icon{font-family:'Noto Sans Egyptian Hieroglyphs',sans-serif;font-size:32px;color:var(--gold-bright);opacity:.7;margin-bottom:6px;}
+.folder-name{color:var(--text);font-size:14px;font-weight:600;margin-bottom:4px;word-break:break-word;}
+.folder-count{color:var(--text-muted);font-size:12px;}
 .searchbar{
   margin-top:12px;display:flex;align-items:center;gap:8px;
   background:var(--panel);border:1px solid var(--border);border-radius:8px;
@@ -385,13 +400,18 @@ textarea.csv-input{min-height:120px;font-family:'JetBrains Mono',monospace;font-
 <script src="https://unpkg.com/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="js/config.js"></script>
 <script src="js/state.js"></script>
-<script src="js/offline.js"></script>
+<script src="js/offline-data.js"></script>
+<script src="js/offline-ui.js"></script>
 <script src="js/data.js"></script>
 <script src="js/auth.js"></script>
 <script src="js/render-main.js"></script>
 <script src="js/listeners-main.js"></script>
 <script src="js/cardmarket.js"></script>
 <script src="js/modal-core.js"></script>
+<script src="js/backup.js"></script>
+<script src="js/folder-settings.js"></script>
+<script src="js/deck-data.js"></script>
+<script src="js/deck-builder.js"></script>
 <script src="js/settings.js"></script>
 <script src="js/csv-import.js"></script>
 <script src="js/scan-ocr.js"></script>

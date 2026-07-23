@@ -136,7 +136,9 @@ const DataLayer = {
       return {
         lentWarningDays: data.lent_warning_days,
         offlineNoteText: data.offline_note_text || '',
-        offlineNoteSavedAt: data.offline_note_saved_at || null
+        offlineNoteSavedAt: data.offline_note_saved_at || null,
+        folderOrder: data.folder_order ? JSON.parse(data.folder_order) : [],
+        folderVisible: data.folder_visible ? JSON.parse(data.folder_visible) : []
       };
     } catch (e) {
       return null;
@@ -147,6 +149,8 @@ const DataLayer = {
       const payload = { user_id: currentUserId, lent_warning_days: settingsObj.lentWarningDays };
       if(settingsObj.offlineNoteText !== undefined) payload.offline_note_text = settingsObj.offlineNoteText || null;
       if(settingsObj.offlineNoteSavedAt !== undefined) payload.offline_note_saved_at = settingsObj.offlineNoteSavedAt || null;
+      if(settingsObj.folderOrder !== undefined) payload.folder_order = JSON.stringify(settingsObj.folderOrder || []);
+      if(settingsObj.folderVisible !== undefined) payload.folder_visible = JSON.stringify(settingsObj.folderVisible || []);
       const { error } = await supabaseClient.from('settings').upsert(payload, { onConflict: 'user_id' });
       if (error) { console.error('Speicherfehler (Einstellungen)', error); return false; }
       return true;

@@ -60,3 +60,19 @@ create policy "locations_delete_own" on locations for delete using (auth.uid() =
 create policy "settings_select_own" on settings for select using (auth.uid() = user_id);
 create policy "settings_upsert_own" on settings for insert with check (auth.uid() = user_id);
 create policy "settings_update_own" on settings for update using (auth.uid() = user_id);
+
+-- Decks
+create table if not exists decks (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete cascade,
+  name text not null default 'Neues Deck',
+  main_deck text default '[]',
+  extra_deck text default '[]',
+  side_deck text default '[]',
+  banlist text default 'tcg',
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+alter table decks enable row level security;
+create policy "Users can manage own decks" on decks
+  for all using (auth.uid() = user_id);
