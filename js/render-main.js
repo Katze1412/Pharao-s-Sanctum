@@ -28,7 +28,7 @@ function renderTopbar(){
     '</div>' +
     '<div class="searchbar">' +
       '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>' +
-      '<input id="search-input" type="text" placeholder="Karte, Set, Box, Person suchen…" value="' + escapeAttr(searchQuery) + '">' +
+      '<input id="search-input" type="text" dir="ltr" placeholder="Karte, Set, Box, Person suchen…" value="' + escapeAttr(searchQuery) + '">' +
     '</div>' +
     '<div class="hiero-rule">𓋹 𓋹 𓋹 𓋹 𓋹 𓋹 𓋹 𓋹 𓋹 𓋹 𓋹 𓋹 𓋹 𓋹 𓋹</div>' +
   '</div>';

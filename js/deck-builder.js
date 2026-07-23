@@ -82,7 +82,7 @@ function renderDeckSearch(deck){
   '<div style="padding:10px 14px 0;">' +
     '<div class="searchbar" style="margin-bottom:10px;">' +
       '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>' +
-      '<input id="deck-search-input" type="text" placeholder="Karte suchen (min. 2 Zeichen)…" value="' + escapeAttr(deckSearchQuery) + '">' +
+      '<input id="deck-search-input" type="text" dir="ltr" placeholder="Karte suchen (min. 2 Zeichen)…" value="' + escapeAttr(deckSearchQuery) + '">' +
     '</div>' +
     '<div id="deck-search-results">' + resultsHtml + '</div>' +
   '</div>';
