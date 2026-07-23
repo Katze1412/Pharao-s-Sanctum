@@ -357,13 +357,48 @@ function attachDeckListeners(){
     searchInput.oninput = function(){
       deckSearchQuery = searchInput.value;
       clearTimeout(searchTimer);
-      if(deckSearchQuery.length < 2){ deckSearchResults = []; render(); return; }
-      deckSearchLoading = true;
-      render();
+      if(deckSearchQuery.length < 2){
+        deckSearchResults = [];
+        const resultsEl = document.getElementById('deck-search-results');
+        if(resultsEl) resultsEl.innerHTML = '';
+        return;
+      }
+      const resultsEl = document.getElementById('deck-search-results');
+      if(resultsEl) resultsEl.innerHTML = '<div class="hint" style="padding:16px;text-align:center;">Suche läuft…</div>';
       searchTimer = setTimeout(async function(){
         deckSearchResults = await searchDeckCards(deckSearchQuery);
-        deckSearchLoading = false;
-        render();
+        const deck = getCurrentDeck();
+        const el = document.getElementById('deck-search-results');
+        if(el && deck){
+          el.innerHTML = deckSearchResults.length === 0
+            ? '<div class="hint" style="padding:16px;text-align:center;">Keine Ergebnisse</div>'
+            : deckSearchResults.map(function(card){ return renderDeckSearchResult(card, deck); }).join('');
+          // Listener für neue Ergebnisse anhängen
+          el.querySelectorAll('[data-deck-add]').forEach(function(btn){
+            btn.onclick = function(){
+              const cardId = parseInt(btn.getAttribute('data-deck-add'));
+              const apiCard = deckSearchResults.find(function(c){ return c.id === cardId; });
+              if(!apiCard) return;
+              const d = getCurrentDeck();
+              if(!d) return;
+              const section = getDeckSection(d, apiCard.type);
+              const maxCopies = getMaxCopies(apiCard, d.banlist);
+              const currentCount = d[section].filter(function(c){ return c.id === cardId; }).length;
+              const sectionMax = section === 'extraDeck' ? 15 : 60;
+              if(currentCount >= maxCopies){ showToast('Maximum für diese Karte erreicht'); return; }
+              if(d[section].length >= sectionMax){ showToast('Maximale Kartenanzahl erreicht'); return; }
+              d[section].push({ id: apiCard.id, name: apiCard.name, type: apiCard.type, level: apiCard.level, attribute: apiCard.attribute, atk: apiCard.atk, def: apiCard.def, banlist_info: apiCard.banlist_info });
+              // Nur den Button und Zähler aktualisieren, nicht das ganze Feld
+              const newCount = d[section].filter(function(c){ return c.id === cardId; }).length;
+              btn.closest('.card-row').querySelector('.meta:last-child').lastChild.textContent = newCount > 0 ? ' ' + newCount + 'x im Deck' : '';
+              // Subtab-Zähler aktualisieren
+              document.querySelectorAll('[data-deck-subtab]').forEach(function(t){
+                if(t.getAttribute('data-deck-subtab') === 'main') t.textContent = 'Hauptdeck (' + d.mainDeck.length + ')';
+                if(t.getAttribute('data-deck-subtab') === 'extra') t.textContent = 'Extra (' + d.extraDeck.length + ')';
+              });
+            };
+          });
+        }
       }, 400);
     };
     searchInput.focus();
