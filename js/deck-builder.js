@@ -104,7 +104,10 @@ function renderDeckSearchResult(card, deck){
   return '' +
   '<div class="card-row" style="' + (!canAdd?'opacity:.5;':'') + '">' +
     '<div class="info">' +
-      '<div class="name">' + escapeHtml(card.name) + (inCollection ? ' <span style="color:var(--teal-bright);font-size:11px;">✓ in Sammlung</span>' : '') + '</div>' +
+      '<div class="name">' + escapeHtml(card.name) +
+        (card._lang === 'en' ? ' <span style="color:var(--lapis-bright);font-size:11px;">EN</span>' : '') +
+        (inCollection ? ' <span style="color:var(--teal-bright);font-size:11px;">✓ in Sammlung</span>' : '') +
+      '</div>' +
       '<div class="meta">' + escapeHtml(card.type||'') + (card.atk!==undefined?' · ATK ' + card.atk:'') + (card.def!==undefined?' / DEF ' + card.def:'') + '</div>' +
       '<div class="meta">' + banBadge + (currentCount > 0 ? ' <span style="color:var(--text-muted);font-size:11px;">' + currentCount + 'x im Deck</span>' : '') + '</div>' +
     '</div>' +

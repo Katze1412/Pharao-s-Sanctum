@@ -87,12 +87,31 @@ function getMaxCopies(card, banlist){
 
 async function searchDeckCards(query){
   if(!query || query.trim().length < 2) return [];
+  const q = encodeURIComponent(query.trim());
   try{
-    const url = 'https://db.ygoprodeck.com/api/v7/cardinfo.php?fname=' + encodeURIComponent(query.trim()) + '&language=de';
-    const res = await fetch(url);
-    const data = await res.json();
-    if(!data || !data.data) return [];
-    return data.data.slice(0, 20);
+    const [deRes, enRes] = await Promise.all([
+      fetch('https://db.ygoprodeck.com/api/v7/cardinfo.php?fname=' + q + '&language=de').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+      fetch('https://db.ygoprodeck.com/api/v7/cardinfo.php?fname=' + q).then(function(r){ return r.json(); }).catch(function(){ return null; })
+    ]);
+    const seen = new Set();
+    const results = [];
+    if(deRes && deRes.data){
+      deRes.data.slice(0,15).forEach(function(c){
+        seen.add(c.id);
+        c._lang = 'de';
+        results.push(c);
+      });
+    }
+    if(enRes && enRes.data){
+      enRes.data.forEach(function(c){
+        if(!seen.has(c.id)){
+          seen.add(c.id);
+          c._lang = 'en';
+          results.push(c);
+        }
+      });
+    }
+    return results.slice(0,30);
   } catch(e){ return []; }
 }
 
