@@ -391,13 +391,20 @@ function attachDeckListeners(){
               if(currentCount >= maxCopies){ showToast('Maximum für diese Karte erreicht'); return; }
               if(d[section].length >= sectionMax){ showToast('Maximale Kartenanzahl erreicht'); return; }
               d[section].push({ id: apiCard.id, name: apiCard.name, type: apiCard.type, level: apiCard.level, attribute: apiCard.attribute, atk: apiCard.atk, def: apiCard.def, banlist_info: apiCard.banlist_info });
-              // Nur den Button und Zähler aktualisieren, nicht das ganze Feld
-              const newCount = d[section].filter(function(c){ return c.id === cardId; }).length;
-              btn.closest('.card-row').querySelector('.meta:last-child').lastChild.textContent = newCount > 0 ? ' ' + newCount + 'x im Deck' : '';
-              // Subtab-Zähler aktualisieren
+              // Ergebnisliste + Subtab-Zähler aktualisieren ohne Input-Fokus zu verlieren
+              const el = document.getElementById('deck-search-results');
+              if(el) el.innerHTML = deckSearchResults.map(function(c){ return renderDeckSearchResult(c, d); }).join('');
+              // Listener neu anhängen
+              el && el.querySelectorAll('[data-deck-add]').forEach(function(b){
+                b.onclick = function(){
+                  b.dispatchEvent(new MouseEvent('_deck_add'));
+                };
+              });
               document.querySelectorAll('[data-deck-subtab]').forEach(function(t){
-                if(t.getAttribute('data-deck-subtab') === 'main') t.textContent = 'Hauptdeck (' + d.mainDeck.length + ')';
-                if(t.getAttribute('data-deck-subtab') === 'extra') t.textContent = 'Extra (' + d.extraDeck.length + ')';
+                const st = t.getAttribute('data-deck-subtab');
+                if(st === 'main') t.textContent = 'Hauptdeck (' + d.mainDeck.length + ')';
+                if(st === 'extra') t.textContent = 'Extra (' + d.extraDeck.length + ')';
+                if(st === 'side') t.textContent = 'Side (' + d.sideDeck.length + ')';
               });
             };
           });
