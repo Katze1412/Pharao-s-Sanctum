@@ -402,9 +402,11 @@ function attachDeckListeners(){
               });
               document.querySelectorAll('[data-deck-subtab]').forEach(function(t){
                 const st = t.getAttribute('data-deck-subtab');
-                if(st === 'main') t.textContent = 'Hauptdeck (' + d.mainDeck.length + ')';
-                if(st === 'extra') t.textContent = 'Extra (' + d.extraDeck.length + ')';
-                if(st === 'side') t.textContent = 'Side (' + d.sideDeck.length + ')';
+                const label = t.firstChild && t.firstChild.nodeType === 3 ? t.firstChild : null;
+                if(!label) return;
+                if(st === 'main') label.textContent = 'Hauptdeck (' + d.mainDeck.length + ')';
+                if(st === 'extra') label.textContent = 'Extra (' + d.extraDeck.length + ')';
+                if(st === 'side') label.textContent = 'Side (' + d.sideDeck.length + ')';
               });
             };
           });
@@ -413,25 +415,6 @@ function attachDeckListeners(){
     };
     searchInput.focus();
   }
-
-  // Karte zum Deck hinzufügen (aus Suchergebnissen)
-  document.querySelectorAll('[data-deck-add]').forEach(function(el){
-    el.onclick = function(){
-      const cardId = parseInt(el.getAttribute('data-deck-add'));
-      const apiCard = deckSearchResults.find(function(c){ return c.id === cardId; });
-      if(!apiCard) return;
-      const deck = getCurrentDeck();
-      if(!deck) return;
-      const section = getDeckSection(deck, apiCard.type);
-      const maxCopies = getMaxCopies(apiCard, deck.banlist);
-      const currentCount = deck[section].filter(function(c){ return c.id === cardId; }).length;
-      const sectionMax = section === 'extraDeck' ? 15 : 60;
-      if(currentCount >= maxCopies){ showToast('Maximum für diese Karte erreicht'); return; }
-      if(deck[section].length >= sectionMax){ showToast('Maximale Kartenanzahl erreicht'); return; }
-      deck[section].push({ id: apiCard.id, name: apiCard.name, type: apiCard.type, level: apiCard.level, attribute: apiCard.attribute, atk: apiCard.atk, def: apiCard.def, banlist_info: apiCard.banlist_info });
-      render();
-    };
-  });
 
   // Karte aus Deck entfernen (−)
   document.querySelectorAll('[data-deck-remove]').forEach(function(el){
