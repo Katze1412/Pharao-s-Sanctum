@@ -293,6 +293,36 @@ function exportDeckAsTxt(deck){
 }
 
 /* ---------- LISTENER ---------- */
+function attachDeckAddListeners(container, deck){
+  container.querySelectorAll('[data-deck-add]').forEach(function(btn){
+    btn.onclick = function(){
+      const cardId = parseInt(btn.getAttribute('data-deck-add'));
+      const apiCard = deckSearchResults.find(function(c){ return c.id === cardId; });
+      if(!apiCard) return;
+      const section = getDeckSection(deck, apiCard.type);
+      const maxCopies = getMaxCopies(apiCard, deck.banlist);
+      const currentCount = deck[section].filter(function(c){ return c.id === cardId; }).length;
+      const sectionMax = section === 'extraDeck' ? 15 : 60;
+      if(currentCount >= maxCopies){ showToast('Maximum für diese Karte erreicht'); return; }
+      if(deck[section].length >= sectionMax){ showToast('Maximale Kartenanzahl erreicht'); return; }
+      deck[section].push({ id: apiCard.id, name: apiCard.name, type: apiCard.type, level: apiCard.level, attribute: apiCard.attribute, atk: apiCard.atk, def: apiCard.def, banlist_info: apiCard.banlist_info });
+      // Ergebnisliste aktualisieren ohne Fokus zu verlieren
+      const el = document.getElementById('deck-search-results');
+      if(el){
+        el.innerHTML = deckSearchResults.map(function(c){ return renderDeckSearchResult(c, deck); }).join('');
+        attachDeckAddListeners(el, deck);
+      }
+      // Subtab-Zähler aktualisieren
+      document.querySelectorAll('[data-deck-subtab]').forEach(function(t){
+        const st = t.getAttribute('data-deck-subtab');
+        if(st === 'main') t.textContent = 'Hauptdeck (' + deck.mainDeck.length + ')';
+        if(st === 'extra') t.textContent = 'Extra (' + deck.extraDeck.length + ')';
+        if(st === 'side') t.textContent = 'Side (' + deck.sideDeck.length + ')';
+      });
+    };
+  });
+}
+
 function attachDeckListeners(){
   // Deck öffnen
   document.querySelectorAll('[data-open-deck]').forEach(function(el){
@@ -376,40 +406,7 @@ function attachDeckListeners(){
           el.innerHTML = deckSearchResults.length === 0
             ? '<div class="hint" style="padding:16px;text-align:center;">Keine Ergebnisse</div>'
             : deckSearchResults.map(function(card){ return renderDeckSearchResult(card, deck); }).join('');
-          // Listener für neue Ergebnisse anhängen
-          el.querySelectorAll('[data-deck-add]').forEach(function(btn){
-            btn.onclick = function(){
-              const cardId = parseInt(btn.getAttribute('data-deck-add'));
-              const apiCard = deckSearchResults.find(function(c){ return c.id === cardId; });
-              if(!apiCard) return;
-              const d = getCurrentDeck();
-              if(!d) return;
-              const section = getDeckSection(d, apiCard.type);
-              const maxCopies = getMaxCopies(apiCard, d.banlist);
-              const currentCount = d[section].filter(function(c){ return c.id === cardId; }).length;
-              const sectionMax = section === 'extraDeck' ? 15 : 60;
-              if(currentCount >= maxCopies){ showToast('Maximum für diese Karte erreicht'); return; }
-              if(d[section].length >= sectionMax){ showToast('Maximale Kartenanzahl erreicht'); return; }
-              d[section].push({ id: apiCard.id, name: apiCard.name, type: apiCard.type, level: apiCard.level, attribute: apiCard.attribute, atk: apiCard.atk, def: apiCard.def, banlist_info: apiCard.banlist_info });
-              // Ergebnisliste + Subtab-Zähler aktualisieren ohne Input-Fokus zu verlieren
-              const el = document.getElementById('deck-search-results');
-              if(el) el.innerHTML = deckSearchResults.map(function(c){ return renderDeckSearchResult(c, d); }).join('');
-              // Listener neu anhängen
-              el && el.querySelectorAll('[data-deck-add]').forEach(function(b){
-                b.onclick = function(){
-                  b.dispatchEvent(new MouseEvent('_deck_add'));
-                };
-              });
-              document.querySelectorAll('[data-deck-subtab]').forEach(function(t){
-                const st = t.getAttribute('data-deck-subtab');
-                const label = t.firstChild && t.firstChild.nodeType === 3 ? t.firstChild : null;
-                if(!label) return;
-                if(st === 'main') label.textContent = 'Hauptdeck (' + d.mainDeck.length + ')';
-                if(st === 'extra') label.textContent = 'Extra (' + d.extraDeck.length + ')';
-                if(st === 'side') label.textContent = 'Side (' + d.sideDeck.length + ')';
-              });
-            };
-          });
+          attachDeckAddListeners(el, deck);
         }
       }, 400);
     };
