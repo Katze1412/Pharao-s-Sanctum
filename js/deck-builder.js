@@ -29,16 +29,25 @@ function renderDeckEditor(){
     {id:'main', label:'Hauptdeck (' + deck.mainDeck.length + ')'},
     {id:'extra', label:'Extra (' + deck.extraDeck.length + ')'},
     {id:'side', label:'Side (' + deck.sideDeck.length + ')'},
+    {id:'want', label:'🛒 Want'},
     {id:'stats', label:'📊 Statistiken'}
   ];
   const tabHtml = subtabs.map(function(t){
     return '<button data-deck-subtab="' + t.id + '" class="' + (deckSubtab===t.id?'active':'') + '">' + t.label + '</button>';
   }).join('');
 
+  const BANLIST_OPTIONS = [
+    { value: 'tcg',    label: 'TCG Banlist (Mai 2026)',    key: 'ban_tcg' },
+    { value: 'ocg',    label: 'OCG Banlist (April 2026)',  key: 'ban_ocg' },
+    { value: 'goat',   label: 'Goat Format (April 2005)',  key: 'ban_goat' },
+    { value: 'edison', label: 'Edison Format (Sept. 2010)', key: 'ban_goat' }
+  ];
+
   const banlistHtml = '' +
-  '<select id="deck-banlist-select" style="background:var(--panel);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;font-size:13px;">' +
-    '<option value="tcg" ' + (deck.banlist==='tcg'?'selected':'') + '>TCG Banlist</option>' +
-    '<option value="ocg" ' + (deck.banlist==='ocg'?'selected':'') + '>OCG Banlist</option>' +
+  '<select id="deck-banlist-select" style="background:var(--panel);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;font-size:12px;max-width:220px;">' +
+    BANLIST_OPTIONS.map(function(opt){
+      return '<option value="' + opt.value + '" ' + (deck.banlist===opt.value?'selected':'') + '>' + opt.label + '</option>';
+    }).join('') +
   '</select>';
 
   return '' +
@@ -54,6 +63,8 @@ function renderDeckEditor(){
   renderDeckSubtabContent(deck) +
   '<div style="padding:10px 14px;">' +
     '<button type="button" id="btn-deck-export-ydk" class="btn btn-secondary" style="margin-bottom:8px;">⤓ Als .ydk exportieren</button>' +
+    '<button type="button" id="btn-deck-import-ydk" class="btn btn-secondary" style="margin-bottom:8px;">⤒ .ydk importieren</button>' +
+    '<input type="file" id="deck-import-file" accept=".ydk" style="display:none">' +
     '<button type="button" id="btn-deck-export-txt" class="btn btn-secondary" style="margin-bottom:8px;">⤓ Als Text exportieren</button>' +
     '<button type="button" id="btn-deck-delete" class="btn btn-danger">🗑️ Deck löschen</button>' +
   '</div>';
@@ -64,6 +75,8 @@ function renderDeckSubtabContent(deck){
   if(deckSubtab === 'main') return renderDeckSection(deck, 'mainDeck', 'Hauptdeck', 40, 60);
   if(deckSubtab === 'extra') return renderDeckSection(deck, 'extraDeck', 'Extra Deck', 0, 15);
   if(deckSubtab === 'side') return renderDeckSection(deck, 'sideDeck', 'Side Deck', 0, 15);
+  if(deckSubtab === 'pool') return renderDeckWant(deck);
+  if(deckSubtab === 'want') return renderDeckWant(deck);
   if(deckSubtab === 'stats') return renderDeckStats(deck);
   return '';
 }
@@ -101,17 +114,29 @@ function renderDeckSearchResult(card, deck){
   else if(banStatus === 'Limited') banBadge = '<span class="badge" style="background:rgba(201,162,39,.15);color:var(--gold-bright);border:1px solid var(--gold);">Limitiert</span>';
   else if(banStatus === 'Semi-Limited') banBadge = '<span class="badge" style="background:rgba(201,162,39,.08);color:var(--gold);border:1px solid var(--border);">Semi-Limit</span>';
 
+  const isExtraType = getDeckSection(deck, card.type) === 'extraDeck';
+  const mainLabel = isExtraType ? 'E' : 'M';
+  const mainSection = isExtraType ? 'extraDeck' : 'mainDeck';
+  const mainMax = isExtraType ? 15 : 60;
+  const mainCount = (deck[mainSection]||[]).filter(function(c){ return c.id === card.id; }).length;
+  const sideCount = (deck.sideDeck||[]).filter(function(c){ return c.id === card.id; }).length;
+  const canAddMain = maxCopies > 0 && mainCount < maxCopies && deck[mainSection].length < mainMax;
+  const canAddSide = maxCopies > 0 && sideCount < maxCopies && deck.sideDeck.length < 15;
+
   return '' +
-  '<div class="card-row" style="' + (!canAdd?'opacity:.5;':'') + '">' +
+  '<div class="card-row" style="' + (maxCopies===0?'opacity:.5;':'') + '">' +
     '<div class="info">' +
       '<div class="name">' + escapeHtml(card.name) +
         (card._lang === 'en' ? ' <span style="color:var(--lapis-bright);font-size:11px;">EN</span>' : '') +
-        (inCollection ? ' <span style="color:var(--teal-bright);font-size:11px;">✓ in Sammlung</span>' : '') +
+        (inCollection ? ' <span style="color:var(--teal-bright);font-size:11px;">✓</span>' : '') +
       '</div>' +
       '<div class="meta">' + escapeHtml(card.type||'') + (card.atk!==undefined?' · ATK ' + card.atk:'') + (card.def!==undefined?' / DEF ' + card.def:'') + '</div>' +
-      '<div class="meta">' + banBadge + (currentCount > 0 ? ' <span style="color:var(--text-muted);font-size:11px;">' + currentCount + 'x im Deck</span>' : '') + '</div>' +
+      '<div class="meta">' + banBadge + (mainCount > 0 ? ' <span style="color:var(--text-muted);font-size:11px;">' + mainCount + 'x ' + mainLabel + '</span>' : '') + (sideCount > 0 ? ' <span style="color:var(--text-muted);font-size:11px;">' + sideCount + 'x S</span>' : '') + '</div>' +
     '</div>' +
-    '<button type="button" class="btn btn-secondary" data-deck-add="' + card.id + '" style="width:auto;padding:6px 12px;font-size:13px;flex-shrink:0;" ' + (!canAdd?'disabled':'') + '>+</button>' +
+    '<div style="display:flex;gap:4px;flex-shrink:0;">' +
+      '<button type="button" class="btn btn-secondary" data-deck-add="' + card.id + '" data-deck-target-section="' + mainSection + '" style="width:36px;padding:6px 0;font-size:13px;font-weight:700;" ' + (!canAddMain?'disabled':'') + ' title="' + (isExtraType?'Extra Deck':'Main Deck') + '">' + mainLabel + '</button>' +
+      '<button type="button" class="btn btn-secondary" data-deck-add="' + card.id + '" data-deck-target-section="sideDeck" style="width:36px;padding:6px 0;font-size:13px;font-weight:700;" ' + (!canAddSide?'disabled':'') + ' title="Side Deck">S</button>' +
+    '</div>' +
   '</div>';
 }
 
@@ -158,6 +183,69 @@ function renderDeckSection(deck, section, label, minCards, maxCards){
       '<span style="color:' + statusColor + ';font-size:13px;font-weight:600;">' + sectionCards.length + (maxCards > 0 ? ' / ' + maxCards : '') + '</span>' +
     '</div>' +
     cardsHtml + emptyHtml +
+  '</div>';
+}
+
+/* ---------- WANT-LISTE ---------- */
+function renderDeckWant(deck){
+  const allDeckCards = (deck.mainDeck||[]).concat(deck.extraDeck||[]).concat(deck.sideDeck||[]);
+  if(allDeckCards.length === 0){
+    return '<div class="empty-state"><h3>Noch keine Karten im Deck</h3><p>Füge Karten hinzu um zu sehen, was du noch brauchst.</p></div>';
+  }
+
+  // Pro Kartenname: wie viele brauche ich gesamt, wie viele habe ich
+  const needed = {};
+  allDeckCards.forEach(function(c){
+    const key = c.name.toLowerCase();
+    if(!needed[key]){ needed[key] = { name: c.name, required: 0, owned: 0 }; }
+    needed[key].required++;
+  });
+
+  // Sammlung abgleichen
+  cards.forEach(function(c){
+    if(!c.name) return;
+    const key = c.name.toLowerCase();
+    if(needed[key]){
+      needed[key].owned += (parseInt(c.quantity) || 1);
+    }
+  });
+
+  const missing = Object.values(needed).filter(function(e){ return e.owned < e.required; });
+  const complete = Object.values(needed).filter(function(e){ return e.owned >= e.required; });
+
+  if(missing.length === 0){
+    return '' +
+    '<div style="padding:14px;">' +
+      '<div style="background:rgba(63,143,134,.12);border:1px solid var(--teal-bright);border-radius:8px;padding:14px;text-align:center;color:var(--teal-bright);font-weight:600;margin-bottom:12px;">✅ Du hast alle Karten für dieses Deck!</div>' +
+      '<div class="hint">' + complete.length + ' verschiedene Karten · alle in deiner Sammlung</div>' +
+    '</div>';
+  }
+
+  const missingHtml = missing.map(function(e){
+    const still = e.required - Math.min(e.owned, e.required);
+    return '' +
+    '<div class="card-row">' +
+      '<div class="info">' +
+        '<div class="name">' + escapeHtml(e.name) + '</div>' +
+        '<div class="meta">' +
+          'Benötigt: <strong style="color:var(--text);">' + e.required + 'x</strong> · ' +
+          'Vorhanden: <strong style="color:' + (e.owned > 0 ? 'var(--gold-bright)' : 'var(--crimson-bright)') + ';">' + e.owned + 'x</strong> · ' +
+          'Fehlend: <strong style="color:var(--crimson-bright);">' + still + 'x</strong>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+
+  const totalMissing = missing.reduce(function(sum, e){ return sum + (e.required - Math.min(e.owned, e.required)); }, 0);
+
+  return '' +
+  '<div style="padding:10px 14px 0;">' +
+    '<div style="display:flex;gap:12px;margin-bottom:12px;">' +
+      '<div class="stat"><div class="num" style="color:var(--crimson-bright);">' + missing.length + '</div><div class="lbl">Fehlende Karten</div></div>' +
+      '<div class="stat"><div class="num" style="color:var(--crimson-bright);">' + totalMissing + 'x</div><div class="lbl">Fehlende Kopien</div></div>' +
+      '<div class="stat"><div class="num" style="color:var(--teal-bright);">' + complete.length + '</div><div class="lbl">Vorhanden</div></div>' +
+    '</div>' +
+    missingHtml +
   '</div>';
 }
 
@@ -297,22 +385,21 @@ function attachDeckAddListeners(container, deck){
   container.querySelectorAll('[data-deck-add]').forEach(function(btn){
     btn.onclick = function(){
       const cardId = parseInt(btn.getAttribute('data-deck-add'));
+      const targetSection = btn.getAttribute('data-deck-target-section');
       const apiCard = deckSearchResults.find(function(c){ return c.id === cardId; });
       if(!apiCard) return;
-      const section = getDeckSection(deck, apiCard.type);
+      const section = targetSection || getDeckSection(deck, apiCard.type);
       const maxCopies = getMaxCopies(apiCard, deck.banlist);
       const currentCount = deck[section].filter(function(c){ return c.id === cardId; }).length;
-      const sectionMax = section === 'extraDeck' ? 15 : 60;
+      const sectionMax = (section === 'extraDeck' || section === 'sideDeck') ? 15 : 60;
       if(currentCount >= maxCopies){ showToast('Maximum für diese Karte erreicht'); return; }
       if(deck[section].length >= sectionMax){ showToast('Maximale Kartenanzahl erreicht'); return; }
       deck[section].push({ id: apiCard.id, name: apiCard.name, type: apiCard.type, level: apiCard.level, attribute: apiCard.attribute, atk: apiCard.atk, def: apiCard.def, banlist_info: apiCard.banlist_info });
-      // Ergebnisliste aktualisieren ohne Fokus zu verlieren
       const el = document.getElementById('deck-search-results');
       if(el){
         el.innerHTML = deckSearchResults.map(function(c){ return renderDeckSearchResult(c, deck); }).join('');
         attachDeckAddListeners(el, deck);
       }
-      // Subtab-Zähler aktualisieren
       document.querySelectorAll('[data-deck-subtab]').forEach(function(t){
         const st = t.getAttribute('data-deck-subtab');
         if(st === 'main') t.textContent = 'Hauptdeck (' + deck.mainDeck.length + ')';
@@ -375,6 +462,26 @@ function attachDeckListeners(){
   // Export
   const exportYdkBtn = document.getElementById('btn-deck-export-ydk');
   if(exportYdkBtn){ exportYdkBtn.onclick = function(){ const d = getCurrentDeck(); if(d) exportDeckAsYdk(d); }; }
+
+  const importYdkBtn = document.getElementById('btn-deck-import-ydk');
+  const importYdkInput = document.getElementById('deck-import-file');
+  if(importYdkBtn && importYdkInput){
+    importYdkBtn.onclick = function(){ importYdkInput.click(); };
+    importYdkInput.onchange = async function(){
+      const file = importYdkInput.files[0];
+      if(!file) return;
+      const deck = getCurrentDeck();
+      if(!deck) return;
+      if(deck.mainDeck.length > 0 || deck.extraDeck.length > 0){
+        if(!window.confirm('Das aktuelle Deck wird überschrieben. Fortfahren?')) return;
+      }
+      importYdkBtn.disabled = true;
+      importYdkBtn.textContent = '⏳ Importiere…';
+      const ok = await importDeckFromYdk(file, deck);
+      importYdkBtn.disabled = false;
+      importYdkBtn.textContent = '⤒ .ydk importieren';
+      if(ok) render();    };
+  }
   const exportTxtBtn = document.getElementById('btn-deck-export-txt');
   if(exportTxtBtn){ exportTxtBtn.onclick = function(){ const d = getCurrentDeck(); if(d) exportDeckAsTxt(d); }; }
 
