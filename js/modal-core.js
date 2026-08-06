@@ -5,8 +5,9 @@ function restoreFocus(id){
 /* ============================================================
    MODAL — Hinzufügen / Bearbeiten
    ============================================================ */
-function openModalForNew(){
+function openModalForNew(presetBox){
   draft = emptyDraft();
+  if(presetBox) draft.box = presetBox;
   editingId = null;
   modalTab = 'manuell';
   scanResult = null;

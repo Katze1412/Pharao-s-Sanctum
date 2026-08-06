@@ -14,6 +14,7 @@ const DeckLayer = {
           extraDeck: JSON.parse(row.extra_deck||'[]'),
           sideDeck: JSON.parse(row.side_deck||'[]'),
           banlist: row.banlist || 'tcg',
+          coverId: row.cover_id || null,
           updatedAt: row.updated_at
         };
       });
@@ -30,6 +31,7 @@ const DeckLayer = {
         extra_deck: JSON.stringify(deck.extraDeck||[]),
         side_deck: JSON.stringify(deck.sideDeck||[]),
         banlist: deck.banlist||'tcg',
+        cover_id: deck.coverId || null,
         updated_at: new Date().toISOString()
       };
       const { error } = await supabaseClient.from('decks').upsert(payload, { onConflict: 'id' });
@@ -54,7 +56,8 @@ function emptyDeck(){
     mainDeck: [],
     extraDeck: [],
     sideDeck: [],
-    banlist: 'tcg'
+    banlist: 'tcg',
+    coverId: null
   };
 }
 
@@ -202,53 +205,3 @@ async function importDeckFromYdk(file, deck){
   });
 }
 
-function showImportProgressModal(total){
-  const root = document.getElementById('modal-root');
-  if(!root) return;
-  root.innerHTML = '' +
-  '<div class="modal-overlay" style="z-index:80;">' +
-    '<div class="modal" style="max-width:380px;text-align:center;">' +
-      '<h2 style="color:var(--gold-bright);margin-bottom:16px;">⏳ Importiere Deck</h2>' +
-      '<div class="hint" id="import-progress-text">0 / ' + total + ' Karten geladen…</div>' +
-      '<div style="background:var(--border);border-radius:4px;height:10px;margin-top:12px;overflow:hidden;">' +
-        '<div id="import-progress-bar" style="height:10px;background:linear-gradient(90deg,var(--gold),var(--gold-bright));border-radius:4px;width:0%;transition:width .2s;"></div>' +
-      '</div>' +
-    '</div>' +
-  '</div>';
-}
-
-function updateImportProgress(current, total){
-  const text = document.getElementById('import-progress-text');
-  const bar = document.getElementById('import-progress-bar');
-  if(text) text.textContent = Math.min(current, total) + ' / ' + total + ' Karten geladen…';
-  if(bar) bar.style.width = Math.min(100, Math.round(current/total*100)) + '%';
-}
-
-function showImportResultModal(title, message, notFoundIds, warnings){
-  const root = document.getElementById('modal-root');
-  if(!root) return;
-
-  const notFoundHtml = notFoundIds.length > 0 ? '' +
-  '<div style="margin-top:14px;background:rgba(138,35,50,.15);border:1px solid var(--crimson-bright);border-radius:8px;padding:12px;">' +
-    '<div style="color:#f0a3ad;font-weight:600;margin-bottom:8px;">⚠️ ' + notFoundIds.length + ' Karte(n) nicht gefunden:</div>' +
-    '<div style="color:var(--text-muted);font-size:12px;font-family:\'JetBrains Mono\',monospace;max-height:120px;overflow-y:auto;">' +
-      notFoundIds.map(function(id){ return '<div>ID: ' + id + '</div>'; }).join('') +
-    '</div>' +
-    '<div class="hint" style="margin-top:8px;">Diese Karten sind möglicherweise noch nicht in der YGOPRODeck-Datenbank vorhanden oder die ID ist ungültig.</div>' +
-  '</div>' : '';
-
-  root.innerHTML = '' +
-  '<div class="modal-overlay" id="import-result-overlay" style="z-index:80;">' +
-    '<div class="modal" style="max-width:420px;">' +
-      '<div class="modal-head"><h2>' + escapeHtml(title) + '</h2><button class="modal-close" id="import-result-close">×</button></div>' +
-      '<p style="color:var(--text);margin-bottom:4px;">' + escapeHtml(message) + '</p>' +
-      notFoundHtml +
-      '<button class="btn btn-primary" id="import-result-ok" type="button" style="margin-top:14px;">OK</button>' +
-    '</div>' +
-  '</div>';
-
-  function closeModal(){ root.innerHTML = ''; }
-  document.getElementById('import-result-close').onclick = closeModal;
-  document.getElementById('import-result-ok').onclick = closeModal;
-  document.getElementById('import-result-overlay').onclick = function(e){ if(e.target.id==='import-result-overlay') closeModal(); };
-}

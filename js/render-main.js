@@ -110,7 +110,7 @@ function renderOrdnerView(){
     '</div>' +
     '<div class="groupbar"><span class="label">' + escapeHtml(openFolderId) + ' · ' + folderCards.length + ' Karte' + (folderCards.length===1?'':'n') + '</span></div>' +
     listHtml +
-    renderFab();
+    '<div class="fab" id="fab-add" data-preset-box="' + escapeAttr(openFolderId) + '">+</div>';
   }
 
   // Kacheln-Ansicht
@@ -118,7 +118,11 @@ function renderOrdnerView(){
     const count = cards.filter(function(c){ return c.box === loc; }).length;
     return '' +
     '<div class="folder-tile" data-folder="' + escapeAttr(loc) + '">' +
-      '<div class="folder-icon">𓂧</div>' +
+      '<div class="folder-icon">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:36px;height:36px;color:var(--gold-bright);opacity:.85;">' +
+          '<path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>' +
+        '</svg>' +
+      '</div>' +
       '<div class="folder-name">' + escapeHtml(loc) + '</div>' +
       '<div class="folder-count">' + count + ' Karte' + (count===1?'':'n') + '</div>' +
     '</div>';

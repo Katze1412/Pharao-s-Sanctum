@@ -43,30 +43,42 @@ async function fetchYgoCard(name){
 }
 
 async function fetchArchetype(){
-  const statusEl = document.getElementById('archetype-status');
+  const setStatus = function(msg){ const el=document.getElementById('archetype-status'); if(el) el.textContent=msg; };
   const lookupName = draft.name.trim();
-  if(!lookupName){
-    statusEl.textContent = 'Bitte zuerst einen Kartennamen eingeben.';
-    return;
-  }
-  statusEl.textContent = 'Archetyp wird gesucht für "' + lookupName + '"…';
+  if(!lookupName){ setStatus('Bitte zuerst einen Kartennamen eingeben.'); return; }
+  setStatus('Archetyp wird gesucht für "' + lookupName + '"…');
   try{
     const card = await fetchYgoCard(lookupName);
-    if(!card){
-      statusEl.textContent = 'Karte nicht gefunden (DE/EN). Bitte manuell eintragen.';
-      return;
-    }
-    if(!card.archetype){
-      statusEl.textContent = 'Kein offizieller Archetyp gefunden.';
-      return;
-    }
+    if(!card){ setStatus('Karte nicht gefunden (DE/EN). Bitte manuell eintragen.'); return; }
+    if(!card.archetype){ setStatus('Kein offizieller Archetyp gefunden.'); return; }
     draft.archetype = card.archetype;
-    statusEl.textContent = 'Übernommen: ' + card.archetype;
-    const archInput = document.getElementById('f-archetype');
-    if(archInput) archInput.value = draft.archetype;
+    setStatus('Übernommen: ' + card.archetype);
+    const el = document.getElementById('f-archetype');
+    if(el) el.value = draft.archetype;
   } catch(e){
     console.error('Archetyp-Suche fehlgeschlagen', e);
-    statusEl.textContent = 'Archetyp konnte nicht ermittelt werden. Bitte manuell eintragen.';
+    setStatus('Archetyp konnte nicht ermittelt werden. Bitte manuell eintragen.');
+  }
+}
+
+async function fetchCardmarketPrice(){
+  const setStatus = function(msg){ const el=document.getElementById('price-status'); if(el) el.textContent=msg; };
+  const lookupName = draft.name.trim();
+  if(!lookupName){ setStatus('Bitte zuerst einen Kartennamen eingeben.'); return; }
+  setStatus('Preis wird gesucht für "' + lookupName + '"…');
+  try{
+    const card = await fetchYgoCard(lookupName);
+    if(!card){ setStatus('Karte nicht gefunden (DE/EN). Bitte manuell eintragen.'); return; }
+    const prices = card.card_prices && card.card_prices[0];
+    const price = prices ? parseFloat(prices.cardmarket_price) : NaN;
+    if(!prices || isNaN(price) || price===0){ setStatus('Kein Cardmarket-Preis verfügbar.'); return; }
+    draft.value = price.toFixed(2);
+    setStatus('Übernommen: ' + price.toFixed(2) + ' € (' + card.name + ')');
+    const el = document.getElementById('f-value');
+    if(el) el.value = draft.value;
+  } catch(e){
+    console.error('Preisabruf-Fehler', e);
+    setStatus('Preis konnte nicht abgerufen werden. Bitte manuell eintragen.');
   }
 }
 
@@ -110,32 +122,4 @@ async function batchFetchArchetypes(onProgress){
   return { updated, notFound, total: todo.length };
 }
 
-async function fetchCardmarketPrice(){
-  const statusEl = document.getElementById('price-status');
-  const lookupName = draft.name.trim();
-  if(!lookupName){
-    statusEl.textContent = 'Bitte zuerst einen Kartennamen eingeben.';
-    return;
-  }
-  statusEl.textContent = 'Preis wird gesucht für "' + lookupName + '"…';
-  try{
-    const card = await fetchYgoCard(lookupName);
-    if(!card){
-      statusEl.textContent = 'Karte nicht gefunden (DE/EN). Bitte manuell eintragen.';
-      return;
-    }
-    const prices = card.card_prices && card.card_prices[0];
-    const price = prices ? parseFloat(prices.cardmarket_price) : NaN;
-    if(!prices || isNaN(price) || price === 0){
-      statusEl.textContent = 'Kein Cardmarket-Preis verfügbar.';
-      return;
-    }
-    draft.value = price.toFixed(2);
-    statusEl.textContent = 'Übernommen: ' + price.toFixed(2) + ' € (' + card.name + ')';
-    const valueInput = document.getElementById('f-value');
-    if(valueInput) valueInput.value = draft.value;
-  } catch(e){
-    console.error('Preisabruf-Fehler', e);
-    statusEl.textContent = 'Preis konnte nicht abgerufen werden. Bitte manuell eintragen.';
-  }
-}
+

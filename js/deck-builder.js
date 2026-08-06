@@ -4,19 +4,31 @@
 
 /* ---------- DECK-LISTE ---------- */
 function renderDeckListView(){
+  const importInput = '<input type="file" id="deck-import-file-list" accept=".ydk" style="display:none">';
+  const importFab = '<div class="fab fab-bell" id="fab-import-ydk" title=".ydk importieren" style="bottom:96px;">⤒</div>';
+
   if(decks.length === 0){
-    return '<div class="empty-state"><span class="hiero hiero-glyph">𓂀</span><h3>Noch keine Decks erstellt</h3><p>Tippe auf + um dein erstes Deck zu bauen.</p></div>' + renderFab();
+    return '<div class="empty-state"><span class="hiero hiero-glyph">𓂀</span><h3>Noch keine Decks erstellt</h3><p>Tippe auf + um dein erstes Deck zu bauen oder importiere eine .ydk-Datei.</p></div>' +
+    importInput + importFab + renderFab();
   }
+
   const tiles = decks.map(function(d){
     const total = (d.mainDeck||[]).length + (d.extraDeck||[]).length;
+    const coverImg = d.coverId
+      ? '<img src="https://images.ygoprodeck.com/images/cards/small/' + d.coverId + '.jpg" alt="" style="width:100%;height:120px;object-fit:cover;object-position:center top;border-radius:8px 8px 0 0;display:block;" onerror="this.style.display=\'none\'">'
+      : '<div style="height:120px;background:linear-gradient(135deg,var(--panel-2),var(--panel-3));border-radius:8px 8px 0 0;display:flex;align-items:center;justify-content:center;"><span style="font-size:48px;opacity:.4;">⚔</span></div>';
+
     return '' +
-    '<div class="folder-tile" data-open-deck="' + d.id + '">' +
-      '<div class="folder-icon">⚔</div>' +
-      '<div class="folder-name">' + escapeHtml(d.name) + '</div>' +
-      '<div class="folder-count">' + total + ' Karten · ' + d.banlist.toUpperCase() + '</div>' +
+    '<div class="deck-tile" data-open-deck="' + d.id + '">' +
+      coverImg +
+      '<div style="padding:10px 12px;">' +
+        '<div class="folder-name" style="margin-bottom:4px;">' + escapeHtml(d.name) + '</div>' +
+        '<div class="folder-count">' + total + ' Karten · ' + d.banlist.toUpperCase() + '</div>' +
+      '</div>' +
     '</div>';
   }).join('');
-  return '<div class="folder-grid">' + tiles + '</div>' + renderFab();
+
+  return '<div class="folder-grid">' + tiles + '</div>' + importInput + importFab + renderFab();
 }
 
 /* ---------- DECK-EDITOR WRAPPER ---------- */
@@ -141,49 +153,26 @@ function renderDeckSearchResult(card, deck){
 }
 
 /* ---------- DECK-SEKTION (Main/Extra/Side) ---------- */
+function banBadgeHtml(card, banlist){
+  const s=getBanlistStatus(card,banlist);
+  if(s==='Banned') return '<span class="badge" style="background:rgba(138,35,50,.25);color:#f0a3ad;border:1px solid var(--crimson-bright);">Verboten</span>';
+  if(s==='Limited') return '<span class="badge" style="background:rgba(201,162,39,.15);color:var(--gold-bright);border:1px solid var(--gold);">Limitiert</span>';
+  if(s==='Semi-Limited') return '<span class="badge" style="background:rgba(201,162,39,.08);color:var(--gold);border:1px solid var(--border);">Semi-Limit</span>';
+  return '';
+}
+
 function renderDeckSection(deck, section, label, minCards, maxCards){
-  const sectionCards = deck[section] || [];
-  const isValid = sectionCards.length >= minCards && sectionCards.length <= maxCards;
-  const statusColor = sectionCards.length > maxCards ? 'var(--crimson-bright)' : sectionCards.length < minCards && minCards > 0 ? 'var(--gold)' : 'var(--teal-bright)';
-
-  const grouped = {};
-  sectionCards.forEach(function(c){
-    if(!grouped[c.id]){ grouped[c.id] = { card: c, count: 0 }; }
-    grouped[c.id].count++;
-  });
-
-  const cardsHtml = Object.values(grouped).map(function(entry){
-    const c = entry.card;
-    const banStatus = getBanlistStatus(c, deck.banlist);
-    let banBadge = '';
-    if(banStatus === 'Banned') banBadge = '<span class="badge" style="background:rgba(138,35,50,.25);color:#f0a3ad;border:1px solid var(--crimson-bright);">Verboten</span>';
-    else if(banStatus === 'Limited') banBadge = '<span class="badge" style="background:rgba(201,162,39,.15);color:var(--gold-bright);border:1px solid var(--gold);">Limitiert</span>';
-    else if(banStatus === 'Semi-Limited') banBadge = '<span class="badge" style="background:rgba(201,162,39,.08);color:var(--gold);border:1px solid var(--border);">Semi-Limit</span>';
-    const inCollection = cards.some(function(col){ return col.name && c.name && col.name.toLowerCase() === c.name.toLowerCase(); });
-    return '' +
-    '<div class="card-row">' +
-      '<div class="qty-control">' +
-        '<button type="button" class="qty-btn" data-deck-remove="' + c.id + '" data-deck-section="' + section + '">−</button>' +
-        '<div class="qty">×' + entry.count + '</div>' +
-        '<button type="button" class="qty-btn" data-deck-add-section="' + c.id + '" data-deck-section="' + section + '">+</button>' +
-      '</div>' +
-      '<div class="info">' +
-        '<div class="name">' + escapeHtml(c.name||'') + (inCollection ? ' <span style="color:var(--teal-bright);font-size:11px;">✓</span>' : '') + '</div>' +
-        '<div class="meta">' + escapeHtml(c.type||'') + ' ' + banBadge + '</div>' +
-      '</div>' +
-    '</div>';
+  const sc=deck[section]||[];
+  const col=sc.length>maxCards?'var(--crimson-bright)':sc.length<minCards&&minCards>0?'var(--gold)':'var(--teal-bright)';
+  const grouped={};
+  sc.forEach(function(c){ if(!grouped[c.id]) grouped[c.id]={card:c,count:0}; grouped[c.id].count++; });
+  const rows=Object.values(grouped).map(function(e){
+    const c=e.card;
+    const owned=cards.some(function(x){ return x.name&&c.name&&x.name.toLowerCase()===c.name.toLowerCase(); });
+    const isCover=deck.coverId===c.id;
+    return '<div class="card-row"><div class="qty-control"><button type="button" class="qty-btn" data-deck-remove="'+c.id+'" data-deck-section="'+section+'">−</button><div class="qty">×'+e.count+'</div><button type="button" class="qty-btn" data-deck-add-section="'+c.id+'" data-deck-section="'+section+'">+</button></div><div class="info"><div class="name">'+escapeHtml(c.name||'')+(owned?' <span style="color:var(--teal-bright);font-size:11px;">✓</span>':'')+'</div><div class="meta">'+escapeHtml(c.type||'')+' '+banBadgeHtml(c,deck.banlist)+'</div></div>'+(section!=='sideDeck'?'<button type="button" class="btn btn-secondary" data-set-cover="'+c.id+'" style="width:auto;padding:4px 8px;font-size:11px;flex-shrink:0;">'+(isCover?'🖼️✓':'🖼️')+'</button>':'')+'</div>';
   }).join('');
-
-  const emptyHtml = sectionCards.length === 0 ? '<div class="hint" style="padding:16px;text-align:center;">Noch keine Karten in diesem Bereich</div>' : '';
-
-  return '' +
-  '<div style="padding:10px 14px 0;">' +
-    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">' +
-      '<span style="color:var(--text-muted);font-size:13px;">' + label + '</span>' +
-      '<span style="color:' + statusColor + ';font-size:13px;font-weight:600;">' + sectionCards.length + (maxCards > 0 ? ' / ' + maxCards : '') + '</span>' +
-    '</div>' +
-    cardsHtml + emptyHtml +
-  '</div>';
+  return '<div style="padding:10px 14px 0;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><span style="color:var(--text-muted);font-size:13px;">'+label+'</span><span style="color:'+col+';font-size:13px;font-weight:600;">'+sc.length+(maxCards?' / '+maxCards:'')+'</span></div>'+(rows||'<div class="hint" style="padding:16px;text-align:center;">Noch keine Karten in diesem Bereich</div>')+'</div>';
 }
 
 /* ---------- WANT-LISTE ---------- */
@@ -252,83 +241,34 @@ function renderDeckWant(deck){
 /* ---------- STATISTIKEN ---------- */
 function renderDeckStats(deck){
   const all = (deck.mainDeck||[]).concat(deck.extraDeck||[]).concat(deck.sideDeck||[]);
-  if(all.length === 0) return '<div class="hint" style="padding:24px;text-align:center;">Noch keine Karten im Deck</div>';
+  if(!all.length) return '<div class="hint" style="padding:24px;text-align:center;">Noch keine Karten im Deck</div>';
 
-  const total = deck.mainDeck.length + deck.extraDeck.length + deck.sideDeck.length;
+  // Zählungen aufbauen
+  const count = function(arr, key){ const r={}; arr.forEach(function(c){ const v=c[key]||'?'; r[v]=(r[v]||0)+1; }); return r; };
+  const typeCounts = count(all, 'type');
+  const attrCounts = count(all.filter(function(c){ return c.attribute; }), 'attribute');
+  const levelCounts = count(deck.mainDeck.filter(function(c){ return c.level; }), 'level');
 
-  // Typ-Verteilung
-  const typeCounts = {};
-  all.forEach(function(c){
-    const t = c.type || 'Unbekannt';
-    typeCounts[t] = (typeCounts[t]||0) + 1;
-  });
-
-  // Level/Rank-Verteilung (nur Hauptdeck-Monster)
-  const levelCounts = {};
-  deck.mainDeck.forEach(function(c){
-    if(c.level){ levelCounts[c.level] = (levelCounts[c.level]||0) + 1; }
-  });
-
-  // Attribut-Verteilung
-  const attrCounts = {};
-  all.forEach(function(c){
-    if(c.attribute){ attrCounts[c.attribute] = (attrCounts[c.attribute]||0) + 1; }
-  });
-
-  // Banlist-Warnungen
-  const banlisted = all.filter(function(c){
-    const status = getBanlistStatus(c, deck.banlist);
-    return status === 'Banned' || status === 'Limited' || status === 'Semi-Limited';
-  });
-
-  // Validierungsprobleme
+  // Validierung
   const problems = [];
-  if(deck.mainDeck.length < 40) problems.push('Hauptdeck hat weniger als 40 Karten (' + deck.mainDeck.length + ')');
-  if(deck.mainDeck.length > 60) problems.push('Hauptdeck hat mehr als 60 Karten (' + deck.mainDeck.length + ')');
-  if(deck.extraDeck.length > 15) problems.push('Extra Deck hat mehr als 15 Karten (' + deck.extraDeck.length + ')');
-  if(deck.sideDeck.length > 15) problems.push('Side Deck hat mehr als 15 Karten (' + deck.sideDeck.length + ')');
-  banlisted.forEach(function(c){
-    const status = getBanlistStatus(c, deck.banlist);
-    if(status === 'Banned') problems.push(c.name + ' ist auf der Verbotsliste');
-  });
+  if(deck.mainDeck.length < 40) problems.push('Hauptdeck < 40 Karten (' + deck.mainDeck.length + ')');
+  if(deck.mainDeck.length > 60) problems.push('Hauptdeck > 60 Karten (' + deck.mainDeck.length + ')');
+  if(deck.extraDeck.length > 15) problems.push('Extra Deck > 15 Karten');
+  if(deck.sideDeck.length > 15) problems.push('Side Deck > 15 Karten');
+  all.forEach(function(c){ if(getBanlistStatus(c,deck.banlist)==='Banned') problems.push(c.name + ' ist verboten'); });
 
-  const problemsHtml = problems.length > 0
-    ? '<div style="background:rgba(138,35,50,.15);border:1px solid var(--crimson-bright);border-radius:8px;padding:10px 14px;margin-bottom:12px;">' +
-        '<div style="color:#f0a3ad;font-weight:600;margin-bottom:6px;">⚠️ ' + problems.length + ' Problem(e)</div>' +
-        problems.map(function(p){ return '<div style="color:var(--text-muted);font-size:13px;">· ' + escapeHtml(p) + '</div>'; }).join('') +
-      '</div>'
+  const validHtml = problems.length
+    ? '<div style="background:rgba(138,35,50,.15);border:1px solid var(--crimson-bright);border-radius:8px;padding:10px 14px;margin-bottom:12px;"><div style="color:#f0a3ad;font-weight:600;margin-bottom:6px;">⚠️ ' + problems.length + ' Problem(e)</div>' + problems.map(function(p){ return '<div style="color:var(--text-muted);font-size:13px;">· ' + escapeHtml(p) + '</div>'; }).join('') + '</div>'
     : '<div style="background:rgba(63,143,134,.12);border:1px solid var(--teal-bright);border-radius:8px;padding:10px 14px;margin-bottom:12px;color:var(--teal-bright);">✅ Deck ist regelkonform</div>';
 
   function barChart(counts, title){
     const sorted = Object.entries(counts).sort(function(a,b){ return b[1]-a[1]; });
-    const max = sorted[0] ? sorted[0][1] : 1;
-    const bars = sorted.map(function(entry){
-      const pct = Math.round(entry[1]/max*100);
-      return '' +
-      '<div style="margin-bottom:6px;">' +
-        '<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);margin-bottom:2px;">' +
-          '<span>' + escapeHtml(String(entry[0])) + '</span><span>' + entry[1] + '</span>' +
-        '</div>' +
-        '<div style="background:var(--border);border-radius:3px;height:6px;">' +
-          '<div style="background:var(--gold);border-radius:3px;height:6px;width:' + pct + '%;"></div>' +
-        '</div>' +
-      '</div>';
-    }).join('');
-    return '<div style="margin-bottom:16px;"><div style="color:var(--text-muted);font-size:12px;font-weight:600;margin-bottom:8px;">' + title + '</div>' + bars + '</div>';
+    const max = sorted[0]?sorted[0][1]:1;
+    return '<div style="margin-bottom:16px;"><div style="color:var(--text-muted);font-size:12px;font-weight:600;margin-bottom:8px;">' + title + '</div>' +
+      sorted.map(function(e){ return '<div style="margin-bottom:5px;"><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);margin-bottom:2px;"><span>' + escapeHtml(String(e[0])) + '</span><span>' + e[1] + '</span></div><div style="background:var(--border);border-radius:3px;height:6px;"><div style="background:var(--gold);border-radius:3px;height:6px;width:' + Math.round(e[1]/max*100) + '%;"></div></div></div>'; }).join('') + '</div>';
   }
 
-  return '' +
-  '<div style="padding:10px 14px 0;">' +
-    '<div style="display:flex;gap:12px;margin-bottom:12px;">' +
-      '<div class="stat"><div class="num">' + deck.mainDeck.length + '</div><div class="lbl">Hauptdeck</div></div>' +
-      '<div class="stat"><div class="num">' + deck.extraDeck.length + '</div><div class="lbl">Extra</div></div>' +
-      '<div class="stat"><div class="num">' + deck.sideDeck.length + '</div><div class="lbl">Side</div></div>' +
-    '</div>' +
-    problemsHtml +
-    barChart(typeCounts, 'Kartentypen') +
-    (Object.keys(levelCounts).length > 0 ? barChart(levelCounts, 'Level / Rang (Hauptdeck)') : '') +
-    (Object.keys(attrCounts).length > 0 ? barChart(attrCounts, 'Attribute') : '') +
-  '</div>';
+  return '<div style="padding:10px 14px 0;"><div style="display:flex;gap:12px;margin-bottom:12px;"><div class="stat"><div class="num">' + deck.mainDeck.length + '</div><div class="lbl">Hauptdeck</div></div><div class="stat"><div class="num">' + deck.extraDeck.length + '</div><div class="lbl">Extra</div></div><div class="stat"><div class="num">' + deck.sideDeck.length + '</div><div class="lbl">Side</div></div></div>' + validHtml + barChart(typeCounts,'Kartentypen') + (Object.keys(levelCounts).length ? barChart(levelCounts,'Level/Rang') : '') + (Object.keys(attrCounts).length ? barChart(attrCounts,'Attribute') : '') + '</div>';
 }
 
 /* ---------- EXPORT ---------- */
@@ -411,84 +351,43 @@ function attachDeckAddListeners(container, deck){
 }
 
 function attachDeckListeners(){
-  // Deck öffnen
+  function bind(id, ev, fn){ const el=document.getElementById(id); if(el) el[ev]=fn; }
+
   document.querySelectorAll('[data-open-deck]').forEach(function(el){
     el.onclick = function(){ currentDeckId = el.getAttribute('data-open-deck'); deckSubtab = 'suchen'; render(); };
   });
-
-  // Zurück zur Liste
-  const backBtn = document.getElementById('btn-deck-back');
-  if(backBtn){ backBtn.onclick = function(){ currentDeckId = null; render(); }; }
-
-  // Deck-Name
-  const nameInput = document.getElementById('deck-name-input');
-  if(nameInput){
-    nameInput.oninput = function(){
-      const deck = getCurrentDeck();
-      if(deck) deck.name = nameInput.value;
-    };
-  }
-
-  // Banlist-Dropdown
-  const banlistSelect = document.getElementById('deck-banlist-select');
-  if(banlistSelect){
-    banlistSelect.onchange = function(){
-      const deck = getCurrentDeck();
-      if(deck){ deck.banlist = banlistSelect.value; render(); }
-    };
-  }
-
-  // Speichern
-  const saveBtn = document.getElementById('btn-deck-save');
-  if(saveBtn){ saveBtn.onclick = async function(){ await saveDeckChanges(); }; }
-
-  // Löschen
-  const deleteBtn = document.getElementById('btn-deck-delete');
-  if(deleteBtn){
-    deleteBtn.onclick = async function(){
-      const deck = getCurrentDeck();
-      if(!deck) return;
-      if(!window.confirm('Deck "' + deck.name + '" wirklich löschen?')) return;
-      const ok = await DeckLayer.delete(deck.id);
-      if(ok){
-        decks = decks.filter(function(d){ return d.id !== deck.id; });
-        currentDeckId = null;
-        render();
-        showToast('Deck gelöscht');
-      }
-    };
-  }
-
-  // Export
-  const exportYdkBtn = document.getElementById('btn-deck-export-ydk');
-  if(exportYdkBtn){ exportYdkBtn.onclick = function(){ const d = getCurrentDeck(); if(d) exportDeckAsYdk(d); }; }
-
-  const importYdkBtn = document.getElementById('btn-deck-import-ydk');
-  const importYdkInput = document.getElementById('deck-import-file');
-  if(importYdkBtn && importYdkInput){
-    importYdkBtn.onclick = function(){ importYdkInput.click(); };
-    importYdkInput.onchange = async function(){
-      const file = importYdkInput.files[0];
-      if(!file) return;
-      const deck = getCurrentDeck();
-      if(!deck) return;
-      if(deck.mainDeck.length > 0 || deck.extraDeck.length > 0){
-        if(!window.confirm('Das aktuelle Deck wird überschrieben. Fortfahren?')) return;
-      }
-      importYdkBtn.disabled = true;
-      importYdkBtn.textContent = '⏳ Importiere…';
-      const ok = await importDeckFromYdk(file, deck);
-      importYdkBtn.disabled = false;
-      importYdkBtn.textContent = '⤒ .ydk importieren';
-      if(ok) render();    };
-  }
-  const exportTxtBtn = document.getElementById('btn-deck-export-txt');
-  if(exportTxtBtn){ exportTxtBtn.onclick = function(){ const d = getCurrentDeck(); if(d) exportDeckAsTxt(d); }; }
-
-  // Subtabs
   document.querySelectorAll('[data-deck-subtab]').forEach(function(el){
     el.onclick = function(){ deckSubtab = el.getAttribute('data-deck-subtab'); render(); };
   });
+
+  bind('btn-deck-back', 'onclick', function(){ currentDeckId = null; render(); });
+  bind('btn-deck-save', 'onclick', async function(){ await saveDeckChanges(); });
+  bind('btn-deck-export-ydk', 'onclick', function(){ const d=getCurrentDeck(); if(d) exportDeckAsYdk(d); });
+  bind('btn-deck-export-txt', 'onclick', function(){ const d=getCurrentDeck(); if(d) exportDeckAsTxt(d); });
+
+  bind('deck-name-input', 'oninput', function(){ const d=getCurrentDeck(); if(d) d.name=document.getElementById('deck-name-input').value; });
+  bind('deck-banlist-select', 'onchange', function(){ const d=getCurrentDeck(); if(d){ d.banlist=document.getElementById('deck-banlist-select').value; render(); } });
+
+  bind('btn-deck-delete', 'onclick', async function(){
+    const deck=getCurrentDeck(); if(!deck) return;
+    if(!window.confirm('Deck "' + deck.name + '" wirklich löschen?')) return;
+    if(await DeckLayer.delete(deck.id)){ decks=decks.filter(function(d){ return d.id!==deck.id; }); currentDeckId=null; render(); showToast('Deck gelöscht'); }
+  });
+
+  const importYdkBtn=document.getElementById('btn-deck-import-ydk');
+  const importYdkInput=document.getElementById('deck-import-file');
+  if(importYdkBtn && importYdkInput){
+    importYdkBtn.onclick = function(){ importYdkInput.click(); };
+    importYdkInput.onchange = async function(){
+      const file=importYdkInput.files[0]; if(!file) return;
+      const deck=getCurrentDeck(); if(!deck) return;
+      if((deck.mainDeck.length||deck.extraDeck.length) && !window.confirm('Das aktuelle Deck wird überschrieben. Fortfahren?')) return;
+      importYdkBtn.disabled=true; importYdkBtn.textContent='⏳ Importiere…';
+      const ok=await importDeckFromYdk(file, deck);
+      importYdkBtn.disabled=false; importYdkBtn.textContent='⤒ .ydk importieren';
+      if(ok) render();
+    };
+  }
 
   // Suche
   const searchInput = document.getElementById('deck-search-input');
@@ -520,6 +419,17 @@ function attachDeckListeners(){
     searchInput.focus();
   }
 
+  // Cover setzen
+  document.querySelectorAll('[data-set-cover]').forEach(function(el){
+    el.onclick = function(){
+      const deck = getCurrentDeck();
+      if(!deck) return;
+      const id = parseInt(el.getAttribute('data-set-cover'));
+      deck.coverId = deck.coverId === id ? null : id;
+      render();
+    };
+  });
+
   // Karte aus Deck entfernen (−)
   document.querySelectorAll('[data-deck-remove]').forEach(function(el){
     el.onclick = function(){
@@ -550,4 +460,56 @@ function attachDeckListeners(){
       render();
     };
   });
+}
+
+
+function showImportProgressModal(total){
+  const root = document.getElementById('modal-root');
+  if(!root) return;
+  root.innerHTML = '' +
+  '<div class="modal-overlay" style="z-index:80;">' +
+    '<div class="modal" style="max-width:380px;text-align:center;">' +
+      '<h2 style="color:var(--gold-bright);margin-bottom:16px;">⏳ Importiere Deck</h2>' +
+      '<div class="hint" id="import-progress-text">0 / ' + total + ' Karten geladen…</div>' +
+      '<div style="background:var(--border);border-radius:4px;height:10px;margin-top:12px;overflow:hidden;">' +
+        '<div id="import-progress-bar" style="height:10px;background:linear-gradient(90deg,var(--gold),var(--gold-bright));border-radius:4px;width:0%;transition:width .2s;"></div>' +
+      '</div>' +
+    '</div>' +
+  '</div>';
+}
+
+function updateImportProgress(current, total){
+  const text = document.getElementById('import-progress-text');
+  const bar = document.getElementById('import-progress-bar');
+  if(text) text.textContent = Math.min(current, total) + ' / ' + total + ' Karten geladen…';
+  if(bar) bar.style.width = Math.min(100, Math.round(current/total*100)) + '%';
+}
+
+function showImportResultModal(title, message, notFoundIds, warnings){
+  const root = document.getElementById('modal-root');
+  if(!root) return;
+
+  const notFoundHtml = notFoundIds.length > 0 ? '' +
+  '<div style="margin-top:14px;background:rgba(138,35,50,.15);border:1px solid var(--crimson-bright);border-radius:8px;padding:12px;">' +
+    '<div style="color:#f0a3ad;font-weight:600;margin-bottom:8px;">⚠️ ' + notFoundIds.length + ' Karte(n) nicht gefunden:</div>' +
+    '<div style="color:var(--text-muted);font-size:12px;font-family:\'JetBrains Mono\',monospace;max-height:120px;overflow-y:auto;">' +
+      notFoundIds.map(function(id){ return '<div>ID: ' + id + '</div>'; }).join('') +
+    '</div>' +
+    '<div class="hint" style="margin-top:8px;">Diese Karten sind möglicherweise noch nicht in der YGOPRODeck-Datenbank vorhanden oder die ID ist ungültig.</div>' +
+  '</div>' : '';
+
+  root.innerHTML = '' +
+  '<div class="modal-overlay" id="import-result-overlay" style="z-index:80;">' +
+    '<div class="modal" style="max-width:420px;">' +
+      '<div class="modal-head"><h2>' + escapeHtml(title) + '</h2><button class="modal-close" id="import-result-close">×</button></div>' +
+      '<p style="color:var(--text);margin-bottom:4px;">' + escapeHtml(message) + '</p>' +
+      notFoundHtml +
+      '<button class="btn btn-primary" id="import-result-ok" type="button" style="margin-top:14px;">OK</button>' +
+    '</div>' +
+  '</div>';
+
+  function closeModal(){ root.innerHTML = ''; }
+  document.getElementById('import-result-close').onclick = closeModal;
+  document.getElementById('import-result-ok').onclick = closeModal;
+  document.getElementById('import-result-overlay').onclick = function(e){ if(e.target.id==='import-result-overlay') closeModal(); };
 }

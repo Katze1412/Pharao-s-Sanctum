@@ -86,7 +86,14 @@ h1,h2,h3{font-family:'Cinzel',serif;letter-spacing:.5px;margin:0;}
   white-space:nowrap;overflow:hidden;
 }
 
-/* Ordner-Reiter */
+/* Deck-Kacheln */
+.deck-tile{
+  background:var(--panel);border:1px solid var(--border);border-radius:12px;
+  cursor:pointer;transition:.15s;overflow:hidden;
+}
+.deck-tile:hover{border-color:var(--gold);background:var(--panel-2);}
+
+/* Ordner-Kacheln */
 .folder-grid{
   display:grid;grid-template-columns:repeat(2,1fr);gap:12px;
   padding:14px;

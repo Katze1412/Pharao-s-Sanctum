@@ -56,7 +56,7 @@ function attachMainListeners(){
   if(filterNoArchBtn){ filterNoArchBtn.onclick = function(){ filterNoArchetype = !filterNoArchetype; render(); }; }
 
   const fab = document.getElementById('fab-add');
-  if(fab){ fab.onclick = function(){ openModalForNew(); }; }
+  if(fab){ fab.onclick = function(){ openModalForNew(fab.getAttribute('data-preset-box') || undefined); }; }
   const fabNewDeck = document.getElementById('fab-new-deck');
   if(fabNewDeck){ fabNewDeck.onclick = function(){
     const newDeck = emptyDeck();
@@ -65,6 +65,31 @@ function attachMainListeners(){
     deckSubtab = 'suchen';
     render();
   }; }
+
+  const fabImportYdk = document.getElementById('fab-import-ydk');
+  const importFileList = document.getElementById('deck-import-file-list');
+  if(fabImportYdk && importFileList){
+    fabImportYdk.onclick = function(){ importFileList.click(); };
+    importFileList.onchange = async function(){
+      const file = importFileList.files[0];
+      if(!file) return;
+      const newDeck = emptyDeck();
+      newDeck.name = file.name.replace('.ydk','');
+      decks.unshift(newDeck);
+      currentDeckId = newDeck.id;
+      deckSubtab = 'main';
+      render();
+      const ok = await importDeckFromYdk(file, newDeck);
+      if(ok){
+        await DeckLayer.save(newDeck);
+        render();
+      } else {
+        decks = decks.filter(function(d){ return d.id !== newDeck.id; });
+        currentDeckId = null;
+        render();
+      }
+    };
+  }
   const fabNote = document.getElementById('fab-note');
   if(fabNote){ fabNote.onclick = function(){ openNoteModal(); }; }
   const fabBell = document.getElementById('fab-bell');
