@@ -278,8 +278,11 @@ async function saveDraft(forceNew){
     render();
     showToast(ok ? 'Karte aktualisiert' : 'Gespeichert im Browser, aber Sync fehlgeschlagen — bitte Seite nicht schließen und nochmal versuchen');
   } else {
+    // Falls wir aus einem Ordner heraus hinzugefügt haben: Ordner-Kontext merken
+    const wasInFolder = openFolderId;
     render();
     draft = emptyDraft();
+    if(wasInFolder) draft.box = wasInFolder;
     renderModal();
     showToast(ok ? 'Karte hinzugefügt — nächste Karte?' : 'Gespeichert im Browser, aber Sync fehlgeschlagen — bitte erneut versuchen');
     const nameInput = document.getElementById('f-name');
