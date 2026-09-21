@@ -51,6 +51,7 @@ function attachMainListeners(){
   });
   const backBtn = document.getElementById('btn-folder-back');
   if(backBtn){ backBtn.onclick = function(){ openFolderId = null; render(); }; }
+  attachFolderDragListeners();
 
   const filterNoArchBtn = document.getElementById('btn-filter-no-archetype');
   if(filterNoArchBtn){ filterNoArchBtn.onclick = function(){ filterNoArchetype = !filterNoArchetype; render(); }; }
@@ -58,13 +59,7 @@ function attachMainListeners(){
   const fab = document.getElementById('fab-add');
   if(fab){ fab.onclick = function(){ openModalForNew(fab.getAttribute('data-preset-box') || undefined); }; }
   const fabNewDeck = document.getElementById('fab-new-deck');
-  if(fabNewDeck){ fabNewDeck.onclick = function(){
-    const newDeck = emptyDeck();
-    decks.unshift(newDeck);
-    currentDeckId = newDeck.id;
-    deckSubtab = 'suchen';
-    render();
-  }; }
+  if(fabNewDeck){ fabNewDeck.onclick = function(){ showFormatPickerModal(); }; }
 
   const fabImportYdk = document.getElementById('fab-import-ydk');
   const importFileList = document.getElementById('deck-import-file-list');
@@ -173,4 +168,171 @@ function attachMainListeners(){
 
   const csvExportBtn = document.getElementById('btn-csv-export');
   if(csvExportBtn){ csvExportBtn.onclick = exportCsv; }
+}
+
+/* ============================================================
+   DRAG & DROP — Ordner-Karten-Reihenfolge
+   ============================================================ */
+function attachFolderDragListeners(){
+  const list = document.getElementById('folder-card-list');
+  if(!list) return;
+
+  let dragSrcId = null;
+  let dragOverEl = null;
+
+  list.querySelectorAll('.card-row[draggable]').forEach(function(row){
+    row.addEventListener('dragstart', function(e){
+      dragSrcId = row.getAttribute('data-card-id');
+      row.style.opacity = '0.4';
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    row.addEventListener('dragend', function(){
+      row.style.opacity = '';
+      if(dragOverEl) dragOverEl.classList.remove('drag-over');
+      dragOverEl = null;
+    });
+    row.addEventListener('dragover', function(e){
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      if(dragOverEl && dragOverEl !== row) dragOverEl.classList.remove('drag-over');
+      dragOverEl = row;
+      row.classList.add('drag-over');
+    });
+    row.addEventListener('dragleave', function(){
+      row.classList.remove('drag-over');
+    });
+    row.addEventListener('drop', async function(e){
+      e.preventDefault();
+      row.classList.remove('drag-over');
+      const targetId = row.getAttribute('data-card-id');
+      if(!dragSrcId || dragSrcId === targetId) return;
+
+      // Aktuelle Reihenfolge aus dem DOM lesen
+      const rows = Array.from(list.querySelectorAll('.card-row[data-card-id]'));
+      let order = rows.map(function(r){ return r.getAttribute('data-card-id'); });
+
+      // Src vor Target einsetzen
+      order = order.filter(function(id){ return id !== dragSrcId; });
+      const targetIdx = order.indexOf(targetId);
+      order.splice(targetIdx, 0, dragSrcId);
+
+      // In settings speichern
+      if(!settings.folderCardOrder) settings.folderCardOrder = {};
+      settings.folderCardOrder[openFolderId] = order;
+      await DataLayer.saveSettings(settings);
+
+      // Neu rendern
+      render();
+    });
+  });
+
+  // Touch-Drag für Mobile (Fallback: Long-Press + move)
+  let touchDragId = null;
+  let touchClone = null;
+  let touchStartY = 0;
+
+  list.querySelectorAll('.drag-handle').forEach(function(handle){
+    handle.addEventListener('touchstart', function(e){
+      touchDragId = handle.getAttribute('data-drag-id');
+      touchStartY = e.touches[0].clientY;
+      const row = handle.closest('.card-row');
+      touchClone = row.cloneNode(true);
+      touchClone.style.cssText = 'position:fixed;left:0;right:0;z-index:999;opacity:0.7;pointer-events:none;background:var(--panel-3);border:1px solid var(--gold);';
+      touchClone.style.top = row.getBoundingClientRect().top + 'px';
+      document.body.appendChild(touchClone);
+      row.style.opacity = '0.3';
+    }, {passive:true});
+
+    handle.addEventListener('touchmove', function(e){
+      if(!touchClone) return;
+      e.preventDefault();
+      const y = e.touches[0].clientY;
+      touchClone.style.top = (y - 30) + 'px';
+
+      // Ziel-Zeile ermitteln
+      const els = list.querySelectorAll('.card-row[data-card-id]');
+      els.forEach(function(r){ r.classList.remove('drag-over'); });
+      const el = document.elementFromPoint(e.touches[0].clientX, y);
+      if(el){
+        const targetRow = el.closest('.card-row[data-card-id]');
+        if(targetRow) targetRow.classList.add('drag-over');
+      }
+    }, {passive:false});
+
+    handle.addEventListener('touchend', async function(e){
+      if(touchClone){ touchClone.remove(); touchClone = null; }
+      const srcRow = list.querySelector('.card-row[data-card-id="' + touchDragId + '"]');
+      if(srcRow) srcRow.style.opacity = '';
+
+      const y = e.changedTouches[0].clientY;
+      const el = document.elementFromPoint(e.changedTouches[0].clientX, y);
+      const targetRow = el && el.closest('.card-row[data-card-id]');
+      list.querySelectorAll('.card-row').forEach(function(r){ r.classList.remove('drag-over'); });
+
+      if(!targetRow || !touchDragId) return;
+      const targetId = targetRow.getAttribute('data-card-id');
+      if(touchDragId === targetId) return;
+
+      const rows = Array.from(list.querySelectorAll('.card-row[data-card-id]'));
+      let order = rows.map(function(r){ return r.getAttribute('data-card-id'); });
+      order = order.filter(function(id){ return id !== touchDragId; });
+      const targetIdx = order.indexOf(targetId);
+      order.splice(targetIdx, 0, touchDragId);
+
+      if(!settings.folderCardOrder) settings.folderCardOrder = {};
+      settings.folderCardOrder[openFolderId] = order;
+      await DataLayer.saveSettings(settings);
+      render();
+    }, {passive:true});
+  });
+}
+
+/* ============================================================
+   FORMAT-PICKER — beim Erstellen eines neuen Decks
+   ============================================================ */
+function showFormatPickerModal(){
+  const root = document.getElementById('modal-root');
+  if(!root) return;
+
+  const formats = [
+    { value: 'tcg',     label: 'TCG',     desc: 'Standard TCG Banlist' },
+    { value: 'ocg',     label: 'OCG',     desc: 'OCG Banlist' },
+    { value: 'goat',    label: 'Goat',    desc: 'April 2005 Format' },
+    { value: 'edison',  label: 'Edison',  desc: 'September 2010 Format' },
+    { value: 'genesys', label: 'Genesys', desc: 'Punktesystem (max. 100 Pkt.)' }
+  ];
+
+  root.innerHTML = '' +
+  '<div class="modal-overlay" id="format-picker-overlay" style="z-index:60;">' +
+    '<div class="modal" style="max-width:380px;">' +
+      '<div class="modal-head"><h2>Format wählen</h2><button class="modal-close" id="format-picker-close">×</button></div>' +
+      '<p class="hint">Welches Format soll dieses Deck nutzen?</p>' +
+      '<div style="display:flex;flex-direction:column;gap:8px;">' +
+        formats.map(function(f){
+          return '' +
+          '<button type="button" class="btn btn-secondary" data-pick-format="' + f.value + '" style="text-align:left;padding:12px 14px;">' +
+            '<div style="font-size:15px;font-weight:700;color:var(--text);">' + f.label + '</div>' +
+            '<div style="font-size:12px;color:var(--text-muted);margin-top:2px;">' + f.desc + '</div>' +
+          '</button>';
+        }).join('') +
+      '</div>' +
+    '</div>' +
+  '</div>';
+
+  function closeModal(){ root.innerHTML = ''; }
+  document.getElementById('format-picker-close').onclick = closeModal;
+  document.getElementById('format-picker-overlay').onclick = function(e){ if(e.target.id==='format-picker-overlay') closeModal(); };
+
+  root.querySelectorAll('[data-pick-format]').forEach(function(btn){
+    btn.onclick = function(){
+      const format = btn.getAttribute('data-pick-format');
+      closeModal();
+      const newDeck = emptyDeck(format);
+      decks.unshift(newDeck);
+      currentDeckId = newDeck.id;
+      currentGenesysFormat = format === 'genesys';
+      deckSubtab = 'suchen';
+      render();
+    };
+  });
 }

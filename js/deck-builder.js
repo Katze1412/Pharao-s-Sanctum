@@ -23,7 +23,7 @@ function renderDeckListView(){
       coverImg +
       '<div style="padding:10px 12px;">' +
         '<div class="folder-name" style="margin-bottom:4px;">' + escapeHtml(d.name) + '</div>' +
-        '<div class="folder-count">' + total + ' Karten · ' + d.banlist.toUpperCase() + '</div>' +
+        '<div class="folder-count">' + total + ' Karten · ' + (d.format === 'genesys' ? 'GENESYS' : d.banlist.toUpperCase()) + '</div>' +
       '</div>' +
     '</div>';
   }).join('');
@@ -37,30 +37,41 @@ function renderDeckEditor(){
   if(!deck) return '<div class="empty-state"><h3>Deck nicht gefunden</h3></div>';
 
   const subtabs = [
-    {id:'suchen', label:'🔍 Suchen'},
-    {id:'main', label:'Hauptdeck (' + deck.mainDeck.length + ')'},
+    {id:'suchen', label:'🔍'},
+    {id:'main', label:'Main (' + deck.mainDeck.length + ')'},
     {id:'extra', label:'Extra (' + deck.extraDeck.length + ')'},
     {id:'side', label:'Side (' + deck.sideDeck.length + ')'},
-    {id:'want', label:'🛒 Want'},
-    {id:'stats', label:'📊 Statistiken'}
+    {id:'want', label:'🛒'},
+    {id:'stats', label:'📊'}
   ];
   const tabHtml = subtabs.map(function(t){
     return '<button data-deck-subtab="' + t.id + '" class="' + (deckSubtab===t.id?'active':'') + '">' + t.label + '</button>';
   }).join('');
 
-  const BANLIST_OPTIONS = [
-    { value: 'tcg',    label: 'TCG Banlist (Mai 2026)',    key: 'ban_tcg' },
-    { value: 'ocg',    label: 'OCG Banlist (April 2026)',  key: 'ban_ocg' },
+  const isGenesys = deck.format === 'genesys' || deck.banlist === 'genesys';
+
+  const BANLIST_OPTIONS = isGenesys ? [] : [
+    { value: 'tcg',    label: 'TCG Banlist',    key: 'ban_tcg' },
+    { value: 'ocg',    label: 'OCG Banlist',    key: 'ban_ocg' },
     { value: 'goat',   label: 'Goat Format (April 2005)',  key: 'ban_goat' },
     { value: 'edison', label: 'Edison Format (Sept. 2010)', key: 'ban_goat' }
   ];
 
-  const banlistHtml = '' +
-  '<select id="deck-banlist-select" style="background:var(--panel);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;font-size:12px;max-width:220px;">' +
-    BANLIST_OPTIONS.map(function(opt){
-      return '<option value="' + opt.value + '" ' + (deck.banlist===opt.value?'selected':'') + '>' + opt.label + '</option>';
-    }).join('') +
-  '</select>';
+  // Genesys: Punkte-Summe berechnen
+  let genesysTotal = 0;
+  if(isGenesys){
+    const allDeckCards = (deck.mainDeck||[]).concat(deck.extraDeck||[]).concat(deck.sideDeck||[]);
+    genesysTotal = allDeckCards.reduce(function(sum, c){ return sum + getGenesysPoints(c); }, 0);
+  }
+
+  const banlistHtml = isGenesys
+    ? '<div style="background:var(--panel);border:1px solid ' + (genesysTotal > 100 ? 'var(--crimson-bright)' : 'var(--border)') + ';border-radius:6px;padding:5px 10px;font-size:13px;color:' + (genesysTotal > 100 ? 'var(--crimson-bright)' : genesysTotal > 80 ? 'var(--gold-bright)' : 'var(--text-muted)') + ';white-space:nowrap;">⚡ ' + genesysTotal + ' / 100 Pkt.</div>'
+    : '' +
+      '<select id="deck-banlist-select" style="background:var(--panel);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;font-size:12px;max-width:220px;">' +
+        BANLIST_OPTIONS.map(function(opt){
+          return '<option value="' + opt.value + '" ' + (deck.banlist===opt.value?'selected':'') + '>' + opt.label + '</option>';
+        }).join('') +
+      '</select>';
 
   return '' +
   '<div style="padding:10px 14px 0;">' +
@@ -87,7 +98,6 @@ function renderDeckSubtabContent(deck){
   if(deckSubtab === 'main') return renderDeckSection(deck, 'mainDeck', 'Hauptdeck', 40, 60);
   if(deckSubtab === 'extra') return renderDeckSection(deck, 'extraDeck', 'Extra Deck', 0, 15);
   if(deckSubtab === 'side') return renderDeckSection(deck, 'sideDeck', 'Side Deck', 0, 15);
-  if(deckSubtab === 'pool') return renderDeckWant(deck);
   if(deckSubtab === 'want') return renderDeckWant(deck);
   if(deckSubtab === 'stats') return renderDeckStats(deck);
   return '';
@@ -122,9 +132,16 @@ function renderDeckSearchResult(card, deck){
   const canAdd = maxCopies > 0 && currentCount < maxCopies && (section === 'extraDeck' ? deck.extraDeck.length < 15 : deck.mainDeck.length < 60);
 
   let banBadge = '';
-  if(banStatus === 'Banned') banBadge = '<span class="badge" style="background:rgba(138,35,50,.25);color:#f0a3ad;border:1px solid var(--crimson-bright);">Verboten</span>';
-  else if(banStatus === 'Limited') banBadge = '<span class="badge" style="background:rgba(201,162,39,.15);color:var(--gold-bright);border:1px solid var(--gold);">Limitiert</span>';
-  else if(banStatus === 'Semi-Limited') banBadge = '<span class="badge" style="background:rgba(201,162,39,.08);color:var(--gold);border:1px solid var(--border);">Semi-Limit</span>';
+  const isGenesysMode = deck.format === 'genesys' || deck.banlist === 'genesys';
+  if(isGenesysMode){
+    const pts = getGenesysPoints(card);
+    if(!isGenesysLegal(card)) banBadge = '<span class="badge" style="background:rgba(138,35,50,.25);color:#f0a3ad;border:1px solid var(--crimson-bright);">Nicht erlaubt</span>';
+    else if(pts > 0) banBadge = '<span class="badge" style="background:rgba(201,162,39,.15);color:var(--gold-bright);border:1px solid var(--gold);">⚡ ' + pts + ' Pkt.</span>';
+  } else {
+    if(banStatus === 'Banned') banBadge = '<span class="badge" style="background:rgba(138,35,50,.25);color:#f0a3ad;border:1px solid var(--crimson-bright);">Verboten</span>';
+    else if(banStatus === 'Limited') banBadge = '<span class="badge" style="background:rgba(201,162,39,.15);color:var(--gold-bright);border:1px solid var(--gold);">Limitiert</span>';
+    else if(banStatus === 'Semi-Limited') banBadge = '<span class="badge" style="background:rgba(201,162,39,.08);color:var(--gold);border:1px solid var(--border);">Semi-Limit</span>';
+  }
 
   const isExtraType = getDeckSection(deck, card.type) === 'extraDeck';
   const mainLabel = isExtraType ? 'E' : 'M';
@@ -251,11 +268,18 @@ function renderDeckStats(deck){
 
   // Validierung
   const problems = [];
-  if(deck.mainDeck.length < 40) problems.push('Hauptdeck < 40 Karten (' + deck.mainDeck.length + ')');
-  if(deck.mainDeck.length > 60) problems.push('Hauptdeck > 60 Karten (' + deck.mainDeck.length + ')');
-  if(deck.extraDeck.length > 15) problems.push('Extra Deck > 15 Karten');
-  if(deck.sideDeck.length > 15) problems.push('Side Deck > 15 Karten');
-  all.forEach(function(c){ if(getBanlistStatus(c,deck.banlist)==='Banned') problems.push(c.name + ' ist verboten'); });
+  const isGenesysDeck = deck.format === 'genesys' || deck.banlist === 'genesys';
+  if(isGenesysDeck){
+    const genesysPts = all.reduce(function(sum, c){ return sum + getGenesysPoints(c); }, 0);
+    if(genesysPts > 100) problems.push('Punktelimit überschritten: ' + genesysPts + ' / 100');
+    all.forEach(function(c){ if(!isGenesysLegal(c)) problems.push(c.name + ' ist im Genesys-Format nicht erlaubt (Link/Pendulum)'); });
+  } else {
+    if(deck.mainDeck.length < 40) problems.push('Hauptdeck < 40 Karten (' + deck.mainDeck.length + ')');
+    if(deck.mainDeck.length > 60) problems.push('Hauptdeck > 60 Karten (' + deck.mainDeck.length + ')');
+    if(deck.extraDeck.length > 15) problems.push('Extra Deck > 15 Karten');
+    if(deck.sideDeck.length > 15) problems.push('Side Deck > 15 Karten');
+    all.forEach(function(c){ if(getBanlistStatus(c,deck.banlist)==='Banned') problems.push(c.name + ' ist verboten'); });
+  }
 
   const validHtml = problems.length
     ? '<div style="background:rgba(138,35,50,.15);border:1px solid var(--crimson-bright);border-radius:8px;padding:10px 14px;margin-bottom:12px;"><div style="color:#f0a3ad;font-weight:600;margin-bottom:6px;">⚠️ ' + problems.length + ' Problem(e)</div>' + problems.map(function(p){ return '<div style="color:var(--text-muted);font-size:13px;">· ' + escapeHtml(p) + '</div>'; }).join('') + '</div>'
@@ -342,7 +366,7 @@ function attachDeckAddListeners(container, deck){
       }
       document.querySelectorAll('[data-deck-subtab]').forEach(function(t){
         const st = t.getAttribute('data-deck-subtab');
-        if(st === 'main') t.textContent = 'Hauptdeck (' + deck.mainDeck.length + ')';
+        if(st === 'main') t.textContent = 'Main (' + deck.mainDeck.length + ')';
         if(st === 'extra') t.textContent = 'Extra (' + deck.extraDeck.length + ')';
         if(st === 'side') t.textContent = 'Side (' + deck.sideDeck.length + ')';
       });
@@ -354,7 +378,13 @@ function attachDeckListeners(){
   function bind(id, ev, fn){ const el=document.getElementById(id); if(el) el[ev]=fn; }
 
   document.querySelectorAll('[data-open-deck]').forEach(function(el){
-    el.onclick = function(){ currentDeckId = el.getAttribute('data-open-deck'); deckSubtab = 'suchen'; render(); };
+    el.onclick = function(){
+      currentDeckId = el.getAttribute('data-open-deck');
+      deckSubtab = 'suchen';
+      const d = decks.find(function(x){ return x.id === currentDeckId; });
+      currentGenesysFormat = !!(d && (d.format === 'genesys' || d.banlist === 'genesys'));
+      render();
+    };
   });
   document.querySelectorAll('[data-deck-subtab]').forEach(function(el){
     el.onclick = function(){ deckSubtab = el.getAttribute('data-deck-subtab'); render(); };

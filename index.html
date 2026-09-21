@@ -120,7 +120,7 @@ h1,h2,h3{font-family:'Cinzel',serif;letter-spacing:.5px;margin:0;}
 .searchbar svg{flex-shrink:0;opacity:.7;}
 
 /* Tabs */
-.tabs{display:flex;gap:6px;margin-top:14px;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.tabs{display:flex;gap:6px;margin-top:14px;}
 .tab{
   flex:1;text-align:center;padding:9px 6px;border-radius:7px;
   background:var(--panel);border:1px solid var(--border);
@@ -139,7 +139,7 @@ h1,h2,h3{font-family:'Cinzel',serif;letter-spacing:.5px;margin:0;}
 }
 .tab.active .count{background:rgba(201,162,39,.18);color:var(--gold-bright);}
 
-.subtabs{display:flex;gap:0;margin-top:14px;border-bottom:1px solid var(--border);}
+.subtabs{display:flex;gap:0;margin-top:14px;border-bottom:1px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch;touch-action:pan-x;overscroll-behavior-x:contain;}
 .subtabs button{
   background:none;border:none;color:var(--text-muted);
   font-family:'Cinzel',serif;font-size:13px;font-weight:600;
@@ -378,6 +378,19 @@ textarea.csv-input{min-height:120px;font-family:'JetBrains Mono',monospace;font-
 .loc-item button:hover{color:var(--crimson-bright);}
 
 @media(prefers-reduced-motion:reduce){*{transition:none!important;}}
+
+.tabs::-webkit-scrollbar{display:none;}
+.subtabs::-webkit-scrollbar{display:none;}
+.drag-handle{
+  font-size:18px;color:var(--text-muted);cursor:grab;padding:0 8px 0 0;
+  flex-shrink:0;line-height:1;user-select:none;touch-action:none;
+}
+.drag-handle:active{cursor:grabbing;}
+.card-row.drag-over{
+  border-color:var(--gold-bright);
+  box-shadow:0 0 0 2px rgba(232,196,104,.4);
+  background:var(--panel-3);
+}
 
 .login-screen{
   max-width:380px;margin:18vh auto 0;padding:28px 24px;

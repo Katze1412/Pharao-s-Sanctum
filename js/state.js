@@ -12,6 +12,7 @@ let deckSubtab = 'suchen';
 let deckSearchQuery = '';
 let deckSearchResults = [];
 let deckSearchLoading = false;
+let currentGenesysFormat = false; // true wenn aktuelles Deck Genesys-Format hat
 let deckBanlist = 'tcg'; // aktuell geöffneter Ordner im Ordner-Reiter
 let currentTab = 'sammlung';      // sammlung | verliehen | verkauf
 let groupBy = 'set';              // set | box

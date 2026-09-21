@@ -14,6 +14,7 @@ const DeckLayer = {
           extraDeck: JSON.parse(row.extra_deck||'[]'),
           sideDeck: JSON.parse(row.side_deck||'[]'),
           banlist: row.banlist || 'tcg',
+          format: row.format || row.banlist || 'tcg',
           coverId: row.cover_id || null,
           updatedAt: row.updated_at
         };
@@ -31,6 +32,7 @@ const DeckLayer = {
         extra_deck: JSON.stringify(deck.extraDeck||[]),
         side_deck: JSON.stringify(deck.sideDeck||[]),
         banlist: deck.banlist||'tcg',
+        format: deck.format || deck.banlist || 'tcg',
         cover_id: deck.coverId || null,
         updated_at: new Date().toISOString()
       };
@@ -49,14 +51,16 @@ const DeckLayer = {
   }
 };
 
-function emptyDeck(){
+function emptyDeck(format){
+  format = format || 'tcg';
   return {
     id: uid(),
     name: 'Neues Deck',
     mainDeck: [],
     extraDeck: [],
     sideDeck: [],
-    banlist: 'tcg',
+    banlist: format === 'genesys' ? 'genesys' : format,
+    format: format,
     coverId: null
   };
 }
@@ -77,6 +81,7 @@ function getDeckSection(deck, cardType){
 function getBanlistKey(banlist){
   if(banlist === 'ocg') return 'ban_ocg';
   if(banlist === 'goat' || banlist === 'edison') return 'ban_goat';
+  if(banlist === 'genesys') return 'genesys_points';
   return 'ban_tcg';
 }
 
@@ -85,7 +90,25 @@ function getBanlistStatus(card, banlist){
   return card.banlist_info[getBanlistKey(banlist)] || null;
 }
 
+function getGenesysPoints(card){
+  if(!card) return 0;
+  if(card.genesys_points !== undefined) return card.genesys_points || 0;
+  if(card.banlist_info && card.banlist_info.genesys_points !== undefined) return card.banlist_info.genesys_points || 0;
+  return 0;
+}
+
+function isGenesysLegal(card){
+  // Link und Pendulum nicht erlaubt
+  const t = card.type || '';
+  if(t.indexOf('Link') !== -1 || t.indexOf('Pendulum') !== -1) return false;
+  return true;
+}
+
 function getMaxCopies(card, banlist){
+  if(banlist === 'genesys'){
+    if(!isGenesysLegal(card)) return 0;
+    return 3;
+  }
   const status = getBanlistStatus(card, banlist);
   if(status === 'Banned') return 0;
   if(status === 'Limited') return 1;
@@ -99,7 +122,7 @@ async function searchDeckCards(query){
   try{
     const [deRes, enRes] = await Promise.all([
       fetch('https://db.ygoprodeck.com/api/v7/cardinfo.php?fname=' + q + '&language=de').then(function(r){ return r.json(); }).catch(function(){ return null; }),
-      fetch('https://db.ygoprodeck.com/api/v7/cardinfo.php?fname=' + q).then(function(r){ return r.json(); }).catch(function(){ return null; })
+      fetch('https://db.ygoprodeck.com/api/v7/cardinfo.php?fname=' + q + (currentGenesysFormat ? '&format=genesys' : '')).then(function(r){ return r.json(); }).catch(function(){ return null; })
     ]);
     const seen = new Set();
     const results = [];

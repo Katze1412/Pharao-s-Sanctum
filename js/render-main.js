@@ -101,9 +101,23 @@ function renderOrdnerView(){
   // Wenn ein Ordner geöffnet ist
   if(openFolderId && visible.indexOf(openFolderId) !== -1){
     const folderCards = cards.filter(function(c){ return c.box === openFolderId; });
+
+    // Reihenfolge aus settings.folderCardOrder anwenden
+    const cardOrder = (settings.folderCardOrder && settings.folderCardOrder[openFolderId]) || [];
+    if(cardOrder.length > 0){
+      folderCards.sort(function(a, b){
+        const ai = cardOrder.indexOf(a.id);
+        const bi = cardOrder.indexOf(b.id);
+        if(ai === -1 && bi === -1) return 0;
+        if(ai === -1) return 1;
+        if(bi === -1) return -1;
+        return ai - bi;
+      });
+    }
+
     const listHtml = folderCards.length === 0
       ? '<div class="empty-state"><p>Dieser Ordner ist leer.</p></div>'
-      : folderCards.map(function(c){ return renderCardRow(c); }).join('');
+      : '<div id="folder-card-list">' + folderCards.map(function(c){ return renderCardRow(c, 'ordner'); }).join('') + '</div>';
     return '' +
     '<div style="padding:12px 14px 0;">' +
       '<button type="button" id="btn-folder-back" style="background:none;border:none;color:var(--gold-bright);font-size:14px;cursor:pointer;padding:0;display:flex;align-items:center;gap:6px;">← Alle Ordner</button>' +
@@ -112,7 +126,6 @@ function renderOrdnerView(){
     listHtml +
     '<div class="fab" id="fab-add" data-preset-box="' + escapeAttr(openFolderId) + '">+</div>';
   }
-
   // Kacheln-Ansicht
   const tilesHtml = ordered.map(function(loc){
     const count = cards.filter(function(c){ return c.box === loc; }).length;
@@ -317,9 +330,11 @@ function renderCardRow(c, mode){
   const qtyDisplayOffline = (isOffline && !selectionMode) ? '<div class="qty mono" style="flex-shrink:0;">×' + (c.quantity||1) + '</div>' : '';
   const checkboxHtml = selectionMode ? '<input type="checkbox" class="select-checkbox" data-select="' + c.id + '" ' + (selectedIds.has(c.id)?'checked':'') + '>' : '';
 
+  const dragHandle = (mode === 'ordner') ? '<span class="drag-handle" data-drag-id="' + c.id + '" title="Verschieben">≡</span>' : '';
+
   return '' +
-  '<div class="card-row' + (isOverdue?' overdue':'') + '"' + ((isOffline||selectionMode) ? '' : ' data-edit="' + c.id + '"') + '>' +
-    checkboxHtml + qtyControl + qtyDisplayOffline +
+  '<div class="card-row' + (isOverdue?' overdue':'') + '"' + (mode === 'ordner' ? ' data-card-id="' + c.id + '" draggable="true"' : ((isOffline||selectionMode) ? '' : ' data-edit="' + c.id + '"')) + '>' +
+    dragHandle + checkboxHtml + qtyControl + qtyDisplayOffline +
     '<div class="info">' +
       '<div class="name">' + escapeHtml(c.name||'(ohne Namen)') + '</div>' +
       '<div class="meta">' + metaParts.join(' · ') + '</div>' +
