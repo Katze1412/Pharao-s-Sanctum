@@ -179,19 +179,35 @@ function attachFolderDragListeners(){
 
   let dragSrcId = null;
   let dragOverEl = null;
+  let isDragging = false;
 
-  list.querySelectorAll('.drag-handle[draggable]').forEach(function(handle){
+  list.querySelectorAll('.drag-handle').forEach(function(handle){
     const row = handle.closest('.card-row');
-    handle.addEventListener('dragstart', function(e){
-      dragSrcId = handle.getAttribute('data-drag-id');
+
+    // Desktop: mousedown auf Handle setzt draggable auf die Zeile
+    handle.addEventListener('mousedown', function(){
+      row.setAttribute('draggable', 'true');
+    });
+
+    row.addEventListener('dragstart', function(e){
+      if(!row.getAttribute('draggable')) { e.preventDefault(); return; }
+      dragSrcId = row.getAttribute('data-card-id');
+      isDragging = true;
       row.style.opacity = '0.4';
       e.dataTransfer.effectAllowed = 'move';
-      e.stopPropagation();
     });
-    handle.addEventListener('dragend', function(){
+
+    row.addEventListener('dragend', function(){
+      row.removeAttribute('draggable');
       row.style.opacity = '';
+      isDragging = false;
       if(dragOverEl) dragOverEl.classList.remove('drag-over');
       dragOverEl = null;
+    });
+
+    // Klick auf Handle soll kein Modal öffnen
+    handle.addEventListener('click', function(e){
+      e.stopPropagation();
     });
   });
 
@@ -213,34 +229,26 @@ function attachFolderDragListeners(){
       const targetId = row.getAttribute('data-card-id');
       if(!dragSrcId || dragSrcId === targetId) return;
 
-      // Aktuelle Reihenfolge aus dem DOM lesen
       const rows = Array.from(list.querySelectorAll('.card-row[data-card-id]'));
       let order = rows.map(function(r){ return r.getAttribute('data-card-id'); });
-
-      // Src vor Target einsetzen
       order = order.filter(function(id){ return id !== dragSrcId; });
       const targetIdx = order.indexOf(targetId);
       order.splice(targetIdx, 0, dragSrcId);
 
-      // In settings speichern
       if(!settings.folderCardOrder) settings.folderCardOrder = {};
       settings.folderCardOrder[openFolderId] = order;
       await DataLayer.saveSettings(settings);
-
-      // Neu rendern
       render();
     });
   });
 
-  // Touch-Drag für Mobile (Fallback: Long-Press + move)
+  // Touch-Drag für Mobile
   let touchDragId = null;
   let touchClone = null;
-  let touchStartY = 0;
 
   list.querySelectorAll('.drag-handle').forEach(function(handle){
     handle.addEventListener('touchstart', function(e){
       touchDragId = handle.getAttribute('data-drag-id');
-      touchStartY = e.touches[0].clientY;
       const row = handle.closest('.card-row');
       touchClone = row.cloneNode(true);
       touchClone.style.cssText = 'position:fixed;left:0;right:0;z-index:999;opacity:0.7;pointer-events:none;background:var(--panel-3);border:1px solid var(--gold);';
@@ -254,8 +262,6 @@ function attachFolderDragListeners(){
       e.preventDefault();
       const y = e.touches[0].clientY;
       touchClone.style.top = (y - 30) + 'px';
-
-      // Ziel-Zeile ermitteln
       const els = list.querySelectorAll('.card-row[data-card-id]');
       els.forEach(function(r){ r.classList.remove('drag-over'); });
       const el = document.elementFromPoint(e.touches[0].clientX, y);
