@@ -211,6 +211,17 @@ function attachFolderDragListeners(){
     });
   });
 
+  // Klick auf Zeile öffnet Modal — aber nur wenn kein Drag läuft
+  list.querySelectorAll('.card-row[data-card-id]').forEach(function(row){
+    row.addEventListener('click', function(e){
+      if(isDragging) return;
+      if(e.target.closest('.drag-handle')) return;
+      if(e.target.closest('[data-qty-plus],[data-qty-minus]')) return;
+      const id = row.getAttribute('data-edit');
+      if(id) openModalForEdit(id);
+    });
+  });
+
   list.querySelectorAll('.card-row[data-card-id]').forEach(function(row){
     row.addEventListener('dragover', function(e){
       if(!dragSrcId) return;
@@ -248,6 +259,7 @@ function attachFolderDragListeners(){
 
   list.querySelectorAll('.drag-handle').forEach(function(handle){
     handle.addEventListener('touchstart', function(e){
+      e.stopPropagation();
       touchDragId = handle.getAttribute('data-drag-id');
       const row = handle.closest('.card-row');
       touchClone = row.cloneNode(true);
