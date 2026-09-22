@@ -330,10 +330,10 @@ function renderCardRow(c, mode){
   const qtyDisplayOffline = (isOffline && !selectionMode) ? '<div class="qty mono" style="flex-shrink:0;">×' + (c.quantity||1) + '</div>' : '';
   const checkboxHtml = selectionMode ? '<input type="checkbox" class="select-checkbox" data-select="' + c.id + '" ' + (selectedIds.has(c.id)?'checked':'') + '>' : '';
 
-  const dragHandle = (mode === 'ordner') ? '<span class="drag-handle" data-drag-id="' + c.id + '" title="Verschieben">≡</span>' : '';
+  const dragHandle = (mode === 'ordner') ? '<span class="drag-handle" draggable="true" data-drag-id="' + c.id + '" title="Verschieben">≡</span>' : '';
 
   return '' +
-  '<div class="card-row' + (isOverdue?' overdue':'') + '"' + (mode === 'ordner' ? ' data-card-id="' + c.id + '" draggable="true"' : ((isOffline||selectionMode) ? '' : ' data-edit="' + c.id + '"')) + '>' +
+  '<div class="card-row' + (isOverdue?' overdue':'') + '"' + (mode === 'ordner' ? ' data-card-id="' + c.id + '" data-edit="' + c.id + '"' : ((isOffline||selectionMode) ? '' : ' data-edit="' + c.id + '"')) + '>' +
     dragHandle + checkboxHtml + qtyControl + qtyDisplayOffline +
     '<div class="info">' +
       '<div class="name">' + escapeHtml(c.name||'(ohne Namen)') + '</div>' +

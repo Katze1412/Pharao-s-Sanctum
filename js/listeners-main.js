@@ -180,18 +180,24 @@ function attachFolderDragListeners(){
   let dragSrcId = null;
   let dragOverEl = null;
 
-  list.querySelectorAll('.card-row[draggable]').forEach(function(row){
-    row.addEventListener('dragstart', function(e){
-      dragSrcId = row.getAttribute('data-card-id');
+  list.querySelectorAll('.drag-handle[draggable]').forEach(function(handle){
+    const row = handle.closest('.card-row');
+    handle.addEventListener('dragstart', function(e){
+      dragSrcId = handle.getAttribute('data-drag-id');
       row.style.opacity = '0.4';
       e.dataTransfer.effectAllowed = 'move';
+      e.stopPropagation();
     });
-    row.addEventListener('dragend', function(){
+    handle.addEventListener('dragend', function(){
       row.style.opacity = '';
       if(dragOverEl) dragOverEl.classList.remove('drag-over');
       dragOverEl = null;
     });
+  });
+
+  list.querySelectorAll('.card-row[data-card-id]').forEach(function(row){
     row.addEventListener('dragover', function(e){
+      if(!dragSrcId) return;
       e.preventDefault();
       e.dataTransfer.dropEffect = 'move';
       if(dragOverEl && dragOverEl !== row) dragOverEl.classList.remove('drag-over');
