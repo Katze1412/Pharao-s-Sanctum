@@ -50,7 +50,11 @@ function attachMainListeners(){
     el.onclick = function(){ openFolderId = el.getAttribute('data-folder'); render(); };
   });
   const backBtn = document.getElementById('btn-folder-back');
-  if(backBtn){ backBtn.onclick = function(){ openFolderId = null; render(); }; }
+  if(backBtn){ backBtn.onclick = function(){ openFolderId = null; folderSortMode = false; render(); }; }
+  const sortStartBtn = document.getElementById('btn-sort-start');
+  if(sortStartBtn){ sortStartBtn.onclick = function(){ folderSortMode = true; render(); }; }
+  const sortDoneBtn = document.getElementById('btn-sort-done');
+  if(sortDoneBtn){ sortDoneBtn.onclick = function(){ folderSortMode = false; render(); }; }
   attachFolderDragListeners();
 
   const filterNoArchBtn = document.getElementById('btn-filter-no-archetype');
@@ -175,54 +179,23 @@ function attachMainListeners(){
    ============================================================ */
 function attachFolderDragListeners(){
   const list = document.getElementById('folder-card-list');
-  if(!list) return;
+  if(!list || !folderSortMode) return;
 
   let dragSrcId = null;
   let dragOverEl = null;
-  let isDragging = false;
 
-  list.querySelectorAll('.drag-handle').forEach(function(handle){
-    const row = handle.closest('.card-row');
-
-    // Desktop: mousedown auf Handle setzt draggable auf die Zeile
-    handle.addEventListener('mousedown', function(){
-      row.setAttribute('draggable', 'true');
-    });
-
+  list.querySelectorAll('.card-row[draggable]').forEach(function(row){
     row.addEventListener('dragstart', function(e){
-      if(!row.getAttribute('draggable')) { e.preventDefault(); return; }
       dragSrcId = row.getAttribute('data-card-id');
-      isDragging = true;
       row.style.opacity = '0.4';
       e.dataTransfer.effectAllowed = 'move';
     });
-
     row.addEventListener('dragend', function(){
-      row.removeAttribute('draggable');
       row.style.opacity = '';
-      isDragging = false;
       if(dragOverEl) dragOverEl.classList.remove('drag-over');
       dragOverEl = null;
+      dragSrcId = null;
     });
-
-    // Klick auf Handle soll kein Modal öffnen
-    handle.addEventListener('click', function(e){
-      e.stopPropagation();
-    });
-  });
-
-  // Klick auf Zeile öffnet Modal — aber nur wenn kein Drag läuft
-  list.querySelectorAll('.card-row[data-card-id]').forEach(function(row){
-    row.addEventListener('click', function(e){
-      if(isDragging) return;
-      if(e.target.closest('.drag-handle')) return;
-      if(e.target.closest('[data-qty-plus],[data-qty-minus]')) return;
-      const id = row.getAttribute('data-edit');
-      if(id) openModalForEdit(id);
-    });
-  });
-
-  list.querySelectorAll('.card-row[data-card-id]').forEach(function(row){
     row.addEventListener('dragover', function(e){
       if(!dragSrcId) return;
       e.preventDefault();
@@ -239,13 +212,11 @@ function attachFolderDragListeners(){
       row.classList.remove('drag-over');
       const targetId = row.getAttribute('data-card-id');
       if(!dragSrcId || dragSrcId === targetId) return;
-
       const rows = Array.from(list.querySelectorAll('.card-row[data-card-id]'));
       let order = rows.map(function(r){ return r.getAttribute('data-card-id'); });
       order = order.filter(function(id){ return id !== dragSrcId; });
       const targetIdx = order.indexOf(targetId);
       order.splice(targetIdx, 0, dragSrcId);
-
       if(!settings.folderCardOrder) settings.folderCardOrder = {};
       settings.folderCardOrder[openFolderId] = order;
       await DataLayer.saveSettings(settings);
@@ -263,7 +234,7 @@ function attachFolderDragListeners(){
       touchDragId = handle.getAttribute('data-drag-id');
       const row = handle.closest('.card-row');
       touchClone = row.cloneNode(true);
-      touchClone.style.cssText = 'position:fixed;left:0;right:0;z-index:999;opacity:0.7;pointer-events:none;background:var(--panel-3);border:1px solid var(--gold);';
+      touchClone.style.cssText = 'position:fixed;left:0;right:0;z-index:999;opacity:0.7;pointer-events:none;background:var(--panel-3);border:1px solid var(--gold);border-radius:8px;';
       touchClone.style.top = row.getBoundingClientRect().top + 'px';
       document.body.appendChild(touchClone);
       row.style.opacity = '0.3';
@@ -274,35 +245,26 @@ function attachFolderDragListeners(){
       e.preventDefault();
       const y = e.touches[0].clientY;
       touchClone.style.top = (y - 30) + 'px';
-      const els = list.querySelectorAll('.card-row[data-card-id]');
-      els.forEach(function(r){ r.classList.remove('drag-over'); });
+      list.querySelectorAll('.card-row[data-card-id]').forEach(function(r){ r.classList.remove('drag-over'); });
       const el = document.elementFromPoint(e.touches[0].clientX, y);
-      if(el){
-        const targetRow = el.closest('.card-row[data-card-id]');
-        if(targetRow) targetRow.classList.add('drag-over');
-      }
+      if(el){ const t = el.closest('.card-row[data-card-id]'); if(t) t.classList.add('drag-over'); }
     }, {passive:false});
 
     handle.addEventListener('touchend', async function(e){
       if(touchClone){ touchClone.remove(); touchClone = null; }
       const srcRow = list.querySelector('.card-row[data-card-id="' + touchDragId + '"]');
       if(srcRow) srcRow.style.opacity = '';
-
       const y = e.changedTouches[0].clientY;
       const el = document.elementFromPoint(e.changedTouches[0].clientX, y);
       const targetRow = el && el.closest('.card-row[data-card-id]');
       list.querySelectorAll('.card-row').forEach(function(r){ r.classList.remove('drag-over'); });
-
       if(!targetRow || !touchDragId) return;
       const targetId = targetRow.getAttribute('data-card-id');
       if(touchDragId === targetId) return;
-
       const rows = Array.from(list.querySelectorAll('.card-row[data-card-id]'));
       let order = rows.map(function(r){ return r.getAttribute('data-card-id'); });
       order = order.filter(function(id){ return id !== touchDragId; });
-      const targetIdx = order.indexOf(targetId);
-      order.splice(targetIdx, 0, touchDragId);
-
+      order.splice(order.indexOf(targetId), 0, touchDragId);
       if(!settings.folderCardOrder) settings.folderCardOrder = {};
       settings.folderCardOrder[openFolderId] = order;
       await DataLayer.saveSettings(settings);

@@ -122,7 +122,7 @@ function renderOrdnerView(){
     '<div style="padding:12px 14px 0;">' +
       '<button type="button" id="btn-folder-back" style="background:none;border:none;color:var(--gold-bright);font-size:14px;cursor:pointer;padding:0;display:flex;align-items:center;gap:6px;">← Alle Ordner</button>' +
     '</div>' +
-    '<div class="groupbar"><span class="label">' + escapeHtml(openFolderId) + ' · ' + folderCards.length + ' Karte' + (folderCards.length===1?'':'n') + '</span></div>' +
+    '<div class="groupbar"><span class="label">' + escapeHtml(openFolderId) + ' · ' + folderCards.length + ' Karte' + (folderCards.length===1?'':'n') + '</span>' + (folderSortMode ? '<button id="btn-sort-done" class="btn btn-primary" style="width:auto;padding:6px 14px;font-size:13px;">✓ Fertig</button>' : '<button id="btn-sort-start" class="btn btn-secondary" style="width:auto;padding:6px 14px;font-size:13px;">⇅ Sortieren</button>') + '</div>' +
     listHtml +
     '<div class="fab" id="fab-add" data-preset-box="' + escapeAttr(openFolderId) + '">+</div>';
   }
@@ -330,10 +330,16 @@ function renderCardRow(c, mode){
   const qtyDisplayOffline = (isOffline && !selectionMode) ? '<div class="qty mono" style="flex-shrink:0;">×' + (c.quantity||1) + '</div>' : '';
   const checkboxHtml = selectionMode ? '<input type="checkbox" class="select-checkbox" data-select="' + c.id + '" ' + (selectedIds.has(c.id)?'checked':'') + '>' : '';
 
-  const dragHandle = (mode === 'ordner') ? '<span class="drag-handle" data-drag-id="' + c.id + '" title="Verschieben">≡</span>' : '';
+  const dragHandle = (mode === 'ordner' && folderSortMode)
+    ? '<span class="drag-handle" data-drag-id="' + c.id + '" title="Verschieben">☰</span>'
+    : '';
+
+  const rowAttrs = mode === 'ordner'
+    ? ' data-card-id="' + c.id + '"' + (folderSortMode ? ' draggable="true"' : ' data-edit="' + c.id + '"')
+    : ((isOffline||selectionMode) ? '' : ' data-edit="' + c.id + '"');
 
   return '' +
-  '<div class="card-row' + (isOverdue?' overdue':'') + '"' + (mode === 'ordner' ? ' data-card-id="' + c.id + '" data-edit="' + c.id + '"' : ((isOffline||selectionMode) ? '' : ' data-edit="' + c.id + '"')) + '>' +
+  '<div class="card-row' + (isOverdue?' overdue':'') + (mode === 'ordner' && folderSortMode ? ' sort-mode' : '') + '"' + rowAttrs + '>' +
     dragHandle + checkboxHtml + qtyControl + qtyDisplayOffline +
     '<div class="info">' +
       '<div class="name">' + escapeHtml(c.name||'(ohne Namen)') + '</div>' +
