@@ -138,7 +138,8 @@ const DataLayer = {
         offlineNoteText: data.offline_note_text || '',
         offlineNoteSavedAt: data.offline_note_saved_at || null,
         folderOrder: data.folder_order ? JSON.parse(data.folder_order) : [],
-        folderVisible: data.folder_visible ? JSON.parse(data.folder_visible) : []
+        folderVisible: data.folder_visible ? JSON.parse(data.folder_visible) : [],
+        folderCardOrder: data.folder_card_order ? JSON.parse(data.folder_card_order) : {}
       };
     } catch (e) {
       return null;
@@ -151,6 +152,7 @@ const DataLayer = {
       if(settingsObj.offlineNoteSavedAt !== undefined) payload.offline_note_saved_at = settingsObj.offlineNoteSavedAt || null;
       if(settingsObj.folderOrder !== undefined) payload.folder_order = JSON.stringify(settingsObj.folderOrder || []);
       if(settingsObj.folderVisible !== undefined) payload.folder_visible = JSON.stringify(settingsObj.folderVisible || []);
+      if(settingsObj.folderCardOrder !== undefined) payload.folder_card_order = JSON.stringify(settingsObj.folderCardOrder || {});
       const { error } = await supabaseClient.from('settings').upsert(payload, { onConflict: 'user_id' });
       if (error) { console.error('Speicherfehler (Einstellungen)', error); return false; }
       return true;

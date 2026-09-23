@@ -6,6 +6,13 @@ async function init(){
   initOfflineHandling();
   if(isOffline) return;
 
+  // Password Recovery Token aus URL verarbeiten
+  const hash = window.location.hash;
+  if(hash && hash.includes('type=recovery')){
+    showPasswordResetScreen();
+    return;
+  }
+
   const { data: sessionData } = await supabaseClient.auth.getSession();
   if(sessionData && sessionData.session && sessionData.session.user){
     currentUserId = sessionData.session.user.id;
@@ -15,6 +22,10 @@ async function init(){
   }
 
   supabaseClient.auth.onAuthStateChange(function(event, session){
+    if(event === 'PASSWORD_RECOVERY'){
+      showPasswordResetScreen();
+      return;
+    }
     if(session && session.user){
       currentUserId = session.user.id;
       loadAppData();
@@ -37,6 +48,37 @@ async function loadAppData(){
   }
   render();
   saveOfflineSnapshot();
+}
+
+/* ============================================================
+   PASSWORD RESET
+   ============================================================ */
+function showPasswordResetScreen(){
+  const app = document.getElementById('app');
+  app.innerHTML = '' +
+  '<div class="login-screen">' +
+    '<div style="text-align:center;margin-bottom:16px;"><div class="title-cartouche"><span class="hiero hiero-eye">𓂀</span><h1>Pharao\'s Sanctum</h1></div></div>' +
+    '<p class="hint" style="text-align:center;">Neues Passwort festlegen.</p>' +
+    '<div class="field"><input id="reset-password" type="password" placeholder="Neues Passwort" autocomplete="new-password"></div>' +
+    '<div class="field"><input id="reset-password2" type="password" placeholder="Passwort wiederholen" autocomplete="new-password"></div>' +
+    '<button class="btn btn-primary" id="btn-reset-submit" type="button">Passwort speichern</button>' +
+    '<div id="login-status" class="hint" style="text-align:center;margin-top:10px;"></div>' +
+  '</div>';
+
+  document.getElementById('btn-reset-submit').onclick = async function(){
+    const pw   = document.getElementById('reset-password').value;
+    const pw2  = document.getElementById('reset-password2').value;
+    const statusEl = document.getElementById('login-status');
+    if(pw.length < 6){ statusEl.textContent = 'Mindestens 6 Zeichen.'; return; }
+    if(pw !== pw2){ statusEl.textContent = 'Passwörter stimmen nicht überein.'; return; }
+    statusEl.textContent = 'Wird gespeichert…';
+    const { error } = await supabaseClient.auth.updateUser({ password: pw });
+    if(error){ statusEl.textContent = 'Fehler: ' + error.message; }
+    else{
+      statusEl.textContent = 'Passwort gesetzt! Du wirst eingeloggt…';
+      setTimeout(function(){ window.location.hash = ''; loadAppData(); }, 1500);
+    }
+  };
 }
 
 /* ============================================================
@@ -144,7 +186,7 @@ async function doRegister(){
   try{
     const { error } = await supabaseClient.auth.signUp({ email, password });
     if(error){ statusEl.textContent = 'Fehler: ' + error.message; }
-    else { statusEl.textContent = 'Konto erstellt! Bitte E-Mail bestätigen, dann kannst du dich einloggen.'; }
+    else { statusEl.textContent = 'Konto erstellt! Du kannst dich jetzt einloggen.'; loginMode = 'login'; showLoginScreen(); }
   } catch(e){
     statusEl.textContent = 'Registrierung fehlgeschlagen. Bitte erneut versuchen.';
   }

@@ -2,7 +2,7 @@
    BACKUP — Export und Import der Sammlung als JSON
    ============================================================ */
 function exportBackup(){
-  const payload = { cards: cards, locations: locations, settings: settings };
+  const payload = { cards: cards, locations: locations, settings: settings, decks: decks };
   const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -26,6 +26,10 @@ function importBackup(file){
         cards = parsed.cards;
         if(Array.isArray(parsed.locations)) locations = parsed.locations;
         if(parsed.settings && typeof parsed.settings.lentWarningDays === 'number') settings = parsed.settings;
+        if(parsed.decks && Array.isArray(parsed.decks)){
+          decks = parsed.decks;
+          for(let i=0; i<decks.length; i++){ await DeckLayer.save(decks[i]); }
+        }
       } else {
         throw new Error('unbekanntes Format');
       }

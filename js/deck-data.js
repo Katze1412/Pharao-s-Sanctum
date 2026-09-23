@@ -116,6 +116,53 @@ function getMaxCopies(card, banlist){
   return 3;
 }
 
+async function refreshDeckBanlistInfo(deck){
+  // Alle eindeutigen Kartennamen aus dem Deck sammeln
+  const allCards = (deck.mainDeck||[]).concat(deck.extraDeck||[]).concat(deck.sideDeck||[]);
+  const uniqueNames = [];
+  const seen = {};
+  allCards.forEach(function(c){
+    if(c.name && !seen[c.name]){ seen[c.name] = true; uniqueNames.push(c.name); }
+  });
+  if(uniqueNames.length === 0) return;
+
+  // In Batches von 10 Namen von YGOPRODeck laden
+  const BATCH = 10;
+  const infoMap = {};
+  for(let i = 0; i < uniqueNames.length; i += BATCH){
+    const batch = uniqueNames.slice(i, i + BATCH);
+    try{
+      const q = batch.map(function(n){ return encodeURIComponent(n); }).join('|');
+      const isGenesysDeck = deck.format === 'genesys' || deck.banlist === 'genesys';
+      const url = 'https://db.ygoprodeck.com/api/v7/cardinfo.php?name=' + q + (isGenesysDeck ? '&format=genesys' : '');
+      const res = await fetch(url);
+      if(!res.ok) continue;
+      const json = await res.json();
+      if(json && json.data){
+        json.data.forEach(function(card){
+          infoMap[card.name] = {
+            banlist_info: card.banlist_info || null,
+            genesys_points: card.genesys_points || 0
+          };
+        });
+      }
+    } catch(e){ /* nächster Batch */ }
+  }
+
+  // Karten im Deck aktualisieren
+  function updateSection(section){
+    section.forEach(function(c){
+      if(infoMap[c.name]){
+        c.banlist_info = infoMap[c.name].banlist_info;
+        c.genesys_points = infoMap[c.name].genesys_points;
+      }
+    });
+  }
+  updateSection(deck.mainDeck||[]);
+  updateSection(deck.extraDeck||[]);
+  updateSection(deck.sideDeck||[]);
+}
+
 async function searchDeckCards(query){
   if(!query || query.trim().length < 2) return [];
   const q = encodeURIComponent(query.trim());

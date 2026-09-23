@@ -378,12 +378,18 @@ function attachDeckListeners(){
   function bind(id, ev, fn){ const el=document.getElementById(id); if(el) el[ev]=fn; }
 
   document.querySelectorAll('[data-open-deck]').forEach(function(el){
-    el.onclick = function(){
+    el.onclick = async function(){
       currentDeckId = el.getAttribute('data-open-deck');
       deckSubtab = 'suchen';
       const d = decks.find(function(x){ return x.id === currentDeckId; });
       currentGenesysFormat = !!(d && (d.format === 'genesys' || d.banlist === 'genesys'));
       render();
+      // Banlist-Info im Hintergrund frisch laden
+      if(d){
+        await refreshDeckBanlistInfo(d);
+        await DeckLayer.save(d);
+        render();
+      }
     };
   });
   document.querySelectorAll('[data-deck-subtab]').forEach(function(el){
