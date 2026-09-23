@@ -120,7 +120,7 @@ h1,h2,h3{font-family:'Cinzel',serif;letter-spacing:.5px;margin:0;}
 .searchbar svg{flex-shrink:0;opacity:.7;}
 
 /* Tabs */
-.tabs{display:flex;gap:6px;margin-top:14px;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.tabs{display:flex;gap:6px;margin-top:14px;}
 .tab{
   flex:1;text-align:center;padding:9px 6px;border-radius:7px;
   background:var(--panel);border:1px solid var(--border);
@@ -382,10 +382,12 @@ textarea.csv-input{min-height:120px;font-family:'JetBrains Mono',monospace;font-
 .tabs::-webkit-scrollbar{display:none;}
 .subtabs::-webkit-scrollbar{display:none;}
 .drag-handle{
-  font-size:18px;color:var(--text-muted);cursor:grab;padding:0 8px 0 0;
+  font-size:17px;color:var(--text-muted);cursor:grab;padding:0 8px 0 0;
   flex-shrink:0;line-height:1;user-select:none;touch-action:none;
 }
-.drag-handle:active{cursor:grabbing;}
+.drag-handle:active{cursor:grabbing;color:var(--gold-bright);}
+.card-row.sort-mode{cursor:grab;}
+.card-row.sort-mode:hover{border-color:var(--teal);box-shadow:0 0 0 1px rgba(63,143,134,.25);}
 .card-row.drag-over{
   border-color:var(--gold-bright);
   box-shadow:0 0 0 2px rgba(232,196,104,.4);
