@@ -115,14 +115,17 @@ function renderOrdnerView(){
       });
     }
 
-    const listHtml = folderCards.length === 0
-      ? '<div class="empty-state"><p>Dieser Ordner ist leer.</p></div>'
-      : '<div id="folder-card-list">' + folderCards.map(function(c){ return renderCardRow(c, 'ordner'); }).join('') + '</div>';
+    const bcfg = getBinderCfg(openFolderId);
+    const isBinder = bcfg.mode === 'binder';
+    const listHtml = isBinder
+      ? renderBinderView(openFolderId, folderCards, bcfg)
+      : renderBinderListView(openFolderId, folderCards, bcfg);
     return '' +
     '<div style="padding:12px 14px 0;">' +
       '<button type="button" id="btn-folder-back" style="background:none;border:none;color:var(--gold-bright);font-size:14px;cursor:pointer;padding:0;display:flex;align-items:center;gap:6px;">← Alle Ordner</button>' +
     '</div>' +
-    '<div class="groupbar"><span class="label">' + escapeHtml(openFolderId) + ' · ' + folderCards.length + ' Karte' + (folderCards.length===1?'':'n') + '</span>' + (folderSortMode ? '<button id="btn-sort-done" class="btn btn-primary" style="width:auto;padding:6px 14px;font-size:13px;">✓ Fertig</button>' : '<button id="btn-sort-start" class="btn btn-secondary" style="width:auto;padding:6px 14px;font-size:13px;">⇅ Sortieren</button>') + '</div>' +
+    '<div class="groupbar"><span class="label">' + escapeHtml(openFolderId) + ' · ' + folderCards.length + ' Karte' + (folderCards.length===1?'':'n') + '</span>' + '</div>' +
+    renderBinderModeToggle(openFolderId, bcfg) +
     listHtml +
     '<div class="fab" id="fab-add" data-preset-box="' + escapeAttr(openFolderId) + '">+</div>';
   }

@@ -139,7 +139,8 @@ const DataLayer = {
         offlineNoteSavedAt: data.offline_note_saved_at || null,
         folderOrder: data.folder_order ? JSON.parse(data.folder_order) : [],
         folderVisible: data.folder_visible ? JSON.parse(data.folder_visible) : [],
-        folderCardOrder: data.folder_card_order ? JSON.parse(data.folder_card_order) : {}
+        folderCardOrder: data.folder_card_order ? JSON.parse(data.folder_card_order) : {},
+        folderBinder: data.folder_binder ? JSON.parse(data.folder_binder) : {}
       };
     } catch (e) {
       return null;
@@ -158,6 +159,19 @@ const DataLayer = {
       return true;
     } catch (e) {
       console.error('Speicherfehler (Einstellungen)', e);
+      return false;
+    }
+  },
+  // Binder-Konfiguration getrennt speichern, damit eine fehlende Spalte
+  // die übrigen Einstellungen nie beeinträchtigt.
+  async saveBinder(binderObj) {
+    try {
+      const payload = { user_id: currentUserId, folder_binder: JSON.stringify(binderObj || {}) };
+      const { error } = await supabaseClient.from('settings').upsert(payload, { onConflict: 'user_id' });
+      if (error) { console.error('Speicherfehler (Binder)', error); return false; }
+      return true;
+    } catch (e) {
+      console.error('Speicherfehler (Binder)', e);
       return false;
     }
   }

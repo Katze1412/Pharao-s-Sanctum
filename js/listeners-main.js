@@ -56,6 +56,7 @@ function attachMainListeners(){
   const sortDoneBtn = document.getElementById('btn-sort-done');
   if(sortDoneBtn){ sortDoneBtn.onclick = function(){ folderSortMode = false; render(); }; }
   attachFolderDragListeners();
+  attachBinderListeners();
 
   const filterNoArchBtn = document.getElementById('btn-filter-no-archetype');
   if(filterNoArchBtn){ filterNoArchBtn.onclick = function(){ filterNoArchetype = !filterNoArchetype; render(); }; }
