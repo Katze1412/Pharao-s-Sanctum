@@ -1,4 +1,4 @@
-async function fetchYgoCard(name){
+async function fetchYgoCard(name, setInfo){
   const cleanName = name.trim().replace(/\s+/g, ' ');
   async function tryUrl(url){
     try{
@@ -39,7 +39,47 @@ async function fetchYgoCard(name){
     if(!card) card = await tryUrl('https://db.ygoprodeck.com/api/v7/cardinfo.php?fname=' + encodeURIComponent(cleanName));
   }
 
+  // 5. Notausgang: Namenssuche ohne Treffer (z. B. neue Karte fehlt in der DE-Datenbank)
+  //    -> über den Set-Code suchen (DE/FR/... wird zu EN getauscht)
+  if(!card && setInfo){
+    card = await fetchYgoCardBySet(setInfo);
+  }
+
   return card || null;
+}
+
+// Set-Code der Sammlung (setCode 'PHHY' + cardNumber 'DE043') -> englischer Set-Code 'PHHY-EN043'
+function ygoEnglishSetCode(setInfo){
+  const sc = ((setInfo && setInfo.setCode) || '').trim().toUpperCase();
+  const cn = ((setInfo && setInfo.cardNumber) || '').trim().toUpperCase();
+  const full = (sc && cn) ? (sc + '-' + cn) : (sc || cn);
+  const m = full.match(/^([A-Z0-9]+)-([A-Z]{1,2})(\d+)$/);
+  if(!m) return null;
+  return m[1] + '-EN' + m[3];
+}
+
+async function fetchYgoCardBySet(setInfo){
+  const enCode = ygoEnglishSetCode(setInfo);
+  if(!enCode) return null;
+  try{
+    const res = await fetch('https://db.ygoprodeck.com/api/v7/cardsetsearch.php?setcode=' + encodeURIComponent(enCode));
+    const raw = await res.text();
+    let data;
+    try{ data = JSON.parse(raw); } catch(e){ return null; }
+    // Antwort kann ein einzelnes Objekt, eine Liste oder {data:[...]} sein
+    let hit = Array.isArray(data) ? data[0] : (data && data.data ? data.data[0] : data);
+    if(!hit || !hit.id) return null;
+    // Vollständige Kartendaten (Archetyp, Preise, Bilder) über die ID nachladen
+    try{
+      const res2 = await fetch('https://db.ygoprodeck.com/api/v7/cardinfo.php?id=' + encodeURIComponent(hit.id));
+      const raw2 = await res2.text();
+      const d2 = JSON.parse(raw2);
+      if(d2 && d2.data && d2.data.length > 0) return d2.data[0];
+    } catch(e){ /* Basisdaten genügen für das Bild */ }
+    return { id: hit.id, name: hit.name || '' };
+  } catch(e){
+    return null;
+  }
 }
 
 async function fetchArchetype(){
@@ -48,7 +88,7 @@ async function fetchArchetype(){
   if(!lookupName){ setStatus('Bitte zuerst einen Kartennamen eingeben.'); return; }
   setStatus('Archetyp wird gesucht für "' + lookupName + '"…');
   try{
-    const card = await fetchYgoCard(lookupName);
+    const card = await fetchYgoCard(lookupName, { setCode: draft.setCode, cardNumber: draft.cardNumber });
     if(!card){ setStatus('Karte nicht gefunden (DE/EN). Bitte manuell eintragen.'); return; }
     if(!card.archetype){ setStatus('Kein offizieller Archetyp gefunden.'); return; }
     draft.archetype = card.archetype;
@@ -67,7 +107,7 @@ async function fetchCardmarketPrice(){
   if(!lookupName){ setStatus('Bitte zuerst einen Kartennamen eingeben.'); return; }
   setStatus('Preis wird gesucht für "' + lookupName + '"…');
   try{
-    const card = await fetchYgoCard(lookupName);
+    const card = await fetchYgoCard(lookupName, { setCode: draft.setCode, cardNumber: draft.cardNumber });
     if(!card){ setStatus('Karte nicht gefunden (DE/EN). Bitte manuell eintragen.'); return; }
     const prices = card.card_prices && card.card_prices[0];
     const price = prices ? parseFloat(prices.cardmarket_price) : NaN;
@@ -93,7 +133,7 @@ async function batchFetchArchetypes(onProgress){
     const c = todo[i];
     if(onProgress) onProgress(i+1, todo.length, updated);
     try{
-      const apiCard = await fetchYgoCard(c.name.trim());
+      const apiCard = await fetchYgoCard(c.name.trim(), { setCode: c.setCode, cardNumber: c.cardNumber });
       if(apiCard && apiCard.archetype){
         const newArchetype = apiCard.archetype;
         // Nur updaten wenn leer ODER abweichend (normalisiert auf englisch)

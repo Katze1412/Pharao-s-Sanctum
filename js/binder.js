@@ -12,6 +12,7 @@ let binderFlipping = false;
 let binderSaveTimer = null;
 let binderImgCache = null;
 let binderImgQueue = [];
+let binderImgMiss = {};      // nur für diese Sitzung: Karten ohne Treffer (wird nicht gespeichert)
 let binderImgBusy = false;
 
 const BINDER_DEFAULTS = { mode: 'binder', cols: 3, rows: 3, spread: 0, maxPages: 10, size: 90 };
@@ -136,7 +137,7 @@ function renderBinderSlot(c, idx){
   if(!c){
     return '<button type="button" class="binder-slot empty" data-bslot="' + idx + '" aria-label="Leerer Slot"><span>+</span></button>';
   }
-  return '<button type="button" class="binder-slot filled" data-bslot="' + idx + '" data-bname="' + escapeAttr(c.name) + '" title="' + escapeAttr(c.name) + '">' +
+  return '<button type="button" class="binder-slot filled" data-bslot="' + idx + '" data-bname="' + escapeAttr(c.name) + '" data-bsc="' + escapeAttr(c.setCode || '') + '" data-bcn="' + escapeAttr(c.cardNumber || '') + '" title="' + escapeAttr(c.name) + '">' +
     '<span class="binder-slot-name">' + escapeHtml(c.name) + '</span>' +
   '</button>';
 }
@@ -319,13 +320,13 @@ function binderGo(folder, target){
 /* ---------- Karten-Bilder (YGOPRODeck, lokal gecacht) ---------- */
 function binderImgGet(){
   if(!binderImgCache){
-    try { binderImgCache = JSON.parse(localStorage.getItem('ps_binder_img') || '{}'); }
+    try { binderImgCache = JSON.parse(localStorage.getItem('ps_binder_img_v2') || '{}'); }
     catch(e){ binderImgCache = {}; }
   }
   return binderImgCache;
 }
 function binderImgSave(){
-  try { localStorage.setItem('ps_binder_img', JSON.stringify(binderImgCache)); } catch(e){}
+  try { localStorage.setItem('ps_binder_img_v2', JSON.stringify(binderImgCache)); } catch(e){}
 }
 function binderImgUrl(id){
   return 'https://images.ygoprodeck.com/images/cards_small/' + id + '.jpg';
@@ -338,8 +339,11 @@ function binderApplyImages(){
     if(v){
       el.style.backgroundImage = 'url(' + binderImgUrl(v) + ')';
       el.classList.add('has-img');
-    } else if(v === undefined){
-      if(binderImgQueue.indexOf(name) === -1) binderImgQueue.push(name);
+    } else if(!binderImgMiss[name]){
+      const known = binderImgQueue.some(function(q){ return q.name === name; });
+      if(!known){
+        binderImgQueue.push({ name: name, setCode: el.getAttribute('data-bsc') || '', cardNumber: el.getAttribute('data-bcn') || '' });
+      }
     }
   });
   binderRunQueue();
@@ -348,18 +352,23 @@ async function binderRunQueue(){
   if(binderImgBusy || binderImgQueue.length === 0) return;
   binderImgBusy = true;
   while(binderImgQueue.length){
-    const name = binderImgQueue.shift();
+    const job = binderImgQueue.shift();
+    const name = job.name;
     let id = 0;
     try {
-      const c = await fetchYgoCard(name);
+      const c = await fetchYgoCard(name, { setCode: job.setCode, cardNumber: job.cardNumber });
       if(c){
         id = (c.card_images && c.card_images[0] && c.card_images[0].id) || c.id || 0;
       }
     } catch(e){
-      continue; // Netzwerkfehler: nicht cachen, beim nächsten Rendern erneut versuchen
+      continue; // Netzwerkfehler: nicht merken, beim nächsten Rendern erneut versuchen
     }
-    binderImgGet()[name] = id;
-    binderImgSave();
+    if(id){
+      binderImgGet()[name] = id;
+      binderImgSave();
+    } else {
+      binderImgMiss[name] = true;   // nur bis zum Neuladen merken, damit spätere Fixes greifen
+    }
     document.querySelectorAll('.binder-slot.filled[data-bname]').forEach(function(el){
       if(el.getAttribute('data-bname') === name && id){
         el.style.backgroundImage = 'url(' + binderImgUrl(id) + ')';
