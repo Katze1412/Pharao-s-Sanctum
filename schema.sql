@@ -76,3 +76,9 @@ create table if not exists decks (
 alter table decks enable row level security;
 create policy "Users can manage own decks" on decks
   for all using (auth.uid() = user_id);
+
+-- Ordner-Reiter und Binder-Ansicht (Spalten der Tabelle settings)
+alter table settings add column if not exists folder_order text;
+alter table settings add column if not exists folder_visible text;
+alter table settings add column if not exists folder_card_order text;
+alter table settings add column if not exists folder_binder text;

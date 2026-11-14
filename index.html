@@ -409,6 +409,108 @@ textarea.csv-input{min-height:120px;font-family:'JetBrains Mono',monospace;font-
   outline:none;margin-bottom:12px;
 }
 .login-screen input:focus{border-color:var(--gold);}
+
+/* ============================================================
+   Binder-Ansicht
+   ============================================================ */
+.binder-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 14px 0;flex-wrap:wrap;}
+.binder-wrap{padding:12px 4px 0;}
+.binder-spread{
+  position:relative;margin:0 auto;padding:10px;
+  background:linear-gradient(145deg,#2d1e0d,#16100a 70%);
+  border:2px solid var(--gold);border-radius:14px;
+  box-shadow:0 10px 30px rgba(0,0,0,.55), inset 0 0 0 1px rgba(232,196,104,.18), inset 0 0 40px rgba(0,0,0,.55);
+}
+.binder-spread::before{
+  content:'𓂀';font-family:'Noto Sans Egyptian Hieroglyphs',sans-serif;
+  position:absolute;top:-1px;left:50%;transform:translate(-50%,-55%);
+  font-size:16px;color:var(--gold-bright);background:var(--bg);padding:0 8px;line-height:1;
+  text-shadow:0 0 8px rgba(201,162,39,.6);
+}
+.binder-pages{position:relative;display:flex;perspective:1800px;}
+.binder-page{
+  position:relative;flex:1;min-width:0;display:grid;gap:5px;align-content:start;
+  padding:10px;background:linear-gradient(180deg,#1d140a,#120c06);
+  border:1px solid rgba(58,44,22,.9);border-radius:6px;
+}
+.binder-page.left{border-radius:6px 2px 2px 6px;}
+.binder-page.right{border-radius:2px 6px 6px 2px;}
+.binder-page-void{background:#0d0905;opacity:.55;}
+.binder-pageno{
+  position:absolute;bottom:3px;font-family:'JetBrains Mono',monospace;
+  font-size:10px;color:var(--text-muted);opacity:.7;
+}
+.binder-page.left .binder-pageno{left:8px;}
+.binder-page.right .binder-pageno{right:8px;}
+.binder-page.single .binder-pageno{left:50%;transform:translateX(-50%);}
+.binder-page{padding-bottom:20px;}
+.binder-spine{
+  position:relative;flex:0 0 14px;
+  background:linear-gradient(90deg,#0a0603,#2c1e0e 50%,#0a0603);
+}
+.binder-ring{
+  position:absolute;left:50%;width:30px;height:9px;margin-left:-15px;margin-top:-4px;z-index:5;
+  border-radius:5px;background:linear-gradient(180deg,#f3e2a6,#c9a227 55%,#7a5f12);
+  box-shadow:0 2px 4px rgba(0,0,0,.6);
+}
+.binder-slot{
+  aspect-ratio:59/86;width:100%;padding:0;position:relative;overflow:hidden;cursor:pointer;
+  font-family:'Rajdhani',sans-serif;color:var(--gold);
+  border:1px solid var(--border);border-radius:5px;
+  background:linear-gradient(160deg,rgba(255,255,255,.06),rgba(255,255,255,.01)),var(--panel);
+  background-size:cover;background-position:center;
+  transition:border-color .15s, transform .12s;
+}
+.binder-slot.empty span{font-size:20px;opacity:.35;line-height:1;}
+.binder-slot.empty:hover{border-color:var(--gold);}
+.binder-slot.empty:hover span{opacity:.8;}
+.binder-slot.filled{border-color:rgba(201,162,39,.55);background-color:var(--panel-2);}
+.binder-slot.filled:hover{border-color:var(--gold-bright);transform:translateY(-1px);}
+.binder-slot-name{
+  position:absolute;left:0;right:0;bottom:0;padding:14px 3px 3px;
+  font-size:9.5px;line-height:1.1;font-weight:600;color:var(--text);text-align:center;
+  background:linear-gradient(0deg,rgba(0,0,0,.88),transparent);word-break:break-word;
+}
+.binder-slot.has-img .binder-slot-name{display:none;}
+.binder-nav{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:12px;}
+.binder-navbtn{
+  width:42px;height:42px;border-radius:50%;cursor:pointer;font-size:24px;line-height:1;
+  background:var(--panel);border:1px solid var(--border);color:var(--gold-bright);
+}
+.binder-navbtn:hover:not(:disabled){border-color:var(--gold);background:var(--panel-2);}
+.binder-navbtn:disabled{opacity:.3;cursor:default;}
+.binder-pagelabel{font-family:'JetBrains Mono',monospace;font-size:12.5px;color:var(--text-muted);min-width:120px;text-align:center;}
+.binder-settings{
+  margin:12px 14px 0;padding:12px 14px;background:var(--panel);
+  border:1px solid var(--border);border-radius:10px;
+}
+.binder-set-row{display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:14px;}
+.binder-set-row:last-of-type{border-bottom:none;}
+.binder-stepper{display:flex;align-items:center;gap:10px;}
+.binder-stepper button{
+  width:28px;height:28px;border-radius:7px;border:1px solid var(--border);
+  background:var(--panel-2);color:var(--gold-bright);font-size:16px;line-height:1;cursor:pointer;
+}
+.binder-stepper button:hover{border-color:var(--gold);}
+.binder-stepper b{min-width:30px;text-align:center;font-family:'JetBrains Mono',monospace;color:var(--text);}
+
+/* Umblätter-Animation */
+.binder-flip{
+  position:absolute;top:0;bottom:0;transform-style:preserve-3d;
+  transition:transform .7s cubic-bezier(.45,.05,.25,1);z-index:4;
+}
+.binder-flip.double{width:calc(50% - 7px);}
+.binder-flip.single{width:100%;}
+.binder-flip.fwd{right:0;transform-origin:left center;}
+.binder-flip.bwd{left:0;transform-origin:right center;}
+.binder-flip.fwd.go{transform:rotateY(-180deg);}
+.binder-flip.bwd.go{transform:rotateY(180deg);}
+.binder-flip.single.fwd.go{transform:rotateY(-110deg);opacity:0;transition:transform .7s cubic-bezier(.45,.05,.25,1), opacity .7s ease-in;}
+.binder-flip.single.bwd.go{transform:rotateY(110deg);opacity:0;transition:transform .7s cubic-bezier(.45,.05,.25,1), opacity .7s ease-in;}
+.binder-flip-face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;}
+.binder-flip-face .binder-page{height:100%;box-shadow:0 0 22px rgba(0,0,0,.5);}
+.binder-flip-face.back{transform:rotateY(180deg);}
+@media (prefers-reduced-motion: reduce){ .binder-flip{transition:none;} }
 </style>
 </head>
 <body>
@@ -433,6 +535,7 @@ textarea.csv-input{min-height:120px;font-family:'JetBrains Mono',monospace;font-
 <script src="js/modal-core.js"></script>
 <script src="js/backup.js"></script>
 <script src="js/folder-settings.js"></script>
+<script src="js/binder.js"></script>
 <script src="js/deck-data.js"></script>
 <script src="js/deck-builder.js"></script>
 <script src="js/settings.js"></script>
