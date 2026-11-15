@@ -62,10 +62,11 @@ async function fetchYgoCardBySet(setInfo){
   const enCode = ygoEnglishSetCode(setInfo);
   if(!enCode) return null;
   try{
-    const res = await fetch('https://db.ygoprodeck.com/api/v7/cardsetsearch.php?setcode=' + encodeURIComponent(enCode));
+    const res = await fetch('https://db.ygoprodeck.com/api/v7/cardsetsinfo.php?setcode=' + encodeURIComponent(enCode));
     const raw = await res.text();
     let data;
     try{ data = JSON.parse(raw); } catch(e){ return null; }
+    // cardsetsinfo.php liefert id, name, set_name, set_code, set_rarity, set_price (bei Fehler {error:...})
     // Antwort kann ein einzelnes Objekt, eine Liste oder {data:[...]} sein
     let hit = Array.isArray(data) ? data[0] : (data && data.data ? data.data[0] : data);
     if(!hit || !hit.id) return null;
