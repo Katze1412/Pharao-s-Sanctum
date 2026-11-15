@@ -61,9 +61,25 @@ function binderTotalPages(cfg){
   return Math.max(cfg.maxPages, binderMaxUsedPage(cfg) + 1);
 }
 
+// Ein Slot enthält eine Liste von Karten-IDs (vorderste zuerst). Ältere Daten: einzelne ID als Text.
+function binderSlotIds(cfg, idx){
+  const v = cfg.slots[idx];
+  if(!v) return [];
+  return Array.isArray(v) ? v : [v];
+}
+
+function binderSetSlot(folder, idx, ids){
+  const cur = getBinderCfg(folder);
+  const slots = Object.assign({}, cur.slots);
+  if(ids.length === 0) delete slots[idx]; else slots[idx] = ids;
+  setBinderCfg(folder, { slots: slots });
+}
+
 function binderPlacedCount(cfg, cardId){
   let n = 0;
-  Object.keys(cfg.slots).forEach(function(k){ if(cfg.slots[k] === cardId) n++; });
+  Object.keys(cfg.slots).forEach(function(k){
+    binderSlotIds(cfg, k).forEach(function(id){ if(id === cardId) n++; });
+  });
   return n;
 }
 
@@ -133,12 +149,16 @@ function renderBinderSettings(cfg){
   '</div>';
 }
 
-function renderBinderSlot(c, idx){
-  if(!c){
+function renderBinderSlot(list, idx){
+  if(!list || list.length === 0){
     return '<button type="button" class="binder-slot empty" data-bslot="' + idx + '" aria-label="Leerer Slot"><span>+</span></button>';
   }
-  return '<button type="button" class="binder-slot filled" data-bslot="' + idx + '" data-bname="' + escapeAttr(c.name) + '" data-bsc="' + escapeAttr(c.setCode || '') + '" data-bcn="' + escapeAttr(c.cardNumber || '') + '" title="' + escapeAttr(c.name) + '">' +
+  const c = list[0];
+  const stacked = list.length > 1;
+  const names = list.map(function(x){ return x.name; }).join(' · ');
+  return '<button type="button" class="binder-slot filled' + (stacked ? ' stacked' : '') + '" data-bslot="' + idx + '" data-bname="' + escapeAttr(c.name) + '" data-bsc="' + escapeAttr(c.setCode || '') + '" data-bcn="' + escapeAttr(c.cardNumber || '') + '" title="' + escapeAttr(names) + '">' +
     '<span class="binder-slot-name">' + escapeHtml(c.name) + '</span>' +
+    (stacked ? '<span class="binder-slot-count">×' + list.length + '</span>' : '') +
   '</button>';
 }
 
@@ -150,9 +170,8 @@ function renderBinderPage(cfg, p, total, byId, side){
   let slotsHtml = '';
   for(let i = 0; i < per; i++){
     const idx = p * per + i;
-    const cid = cfg.slots[idx];
-    const c = cid ? byId[cid] : null;
-    slotsHtml += renderBinderSlot(c, idx);
+    const list = binderSlotIds(cfg, idx).map(function(id){ return byId[id]; }).filter(Boolean);
+    slotsHtml += renderBinderSlot(list, idx);
   }
   return '<div class="binder-page ' + side + '" style="grid-template-columns:repeat(' + cfg.cols + ',minmax(0,1fr));">' +
     slotsHtml +
@@ -212,17 +231,28 @@ function renderBinderListView(folder, folderCards, cfg){
   }
   const per = binderPerPage(cfg);
   const posByCard = {};
+  const nameById = {};
+  folderCards.forEach(function(c){ nameById[c.id] = c.name; });
   Object.keys(cfg.slots).map(function(k){ return parseInt(k, 10); }).sort(function(a, b){ return a - b; }).forEach(function(idx){
-    const id = cfg.slots[idx];
-    if(!posByCard[id]) posByCard[id] = [];
-    posByCard[id].push('S. ' + (Math.floor(idx / per) + 1) + ' · Platz ' + ((idx % per) + 1));
+    const ids = binderSlotIds(cfg, idx).filter(function(id){ return nameById[id] !== undefined; });
+    const seen = {};
+    ids.forEach(function(id){
+      if(seen[id]) return;
+      seen[id] = true;
+      const same = ids.filter(function(x){ return x === id; }).length;
+      const others = [];
+      ids.forEach(function(x){ if(x !== id && others.indexOf(nameById[x]) === -1) others.push(nameById[x]); });
+      if(!posByCard[id]) posByCard[id] = [];
+      posByCard[id].push('S. ' + (Math.floor(idx / per) + 1) + ' · Platz ' + ((idx % per) + 1) +
+        (same > 1 ? ' ×' + same : '') + (others.length ? ' · mit ' + others.join(', ') : ''));
+    });
   });
 
   const placed = [];
   const unplaced = [];
   folderCards.forEach(function(c){
     const q = parseInt(c.quantity, 10) || 1;
-    const free = Math.max(0, q - (posByCard[c.id] ? posByCard[c.id].length : 0));
+    const free = Math.max(0, q - binderPlacedCount(cfg, c.id));
     if(posByCard[c.id]) placed.push({ c: c, free: free });
     else unplaced.push({ c: c, free: free });
   });
@@ -253,7 +283,7 @@ function renderBinderListView(folder, folderCards, cfg){
 
 function cfgFirstIdx(cfg, cardId){
   let min = Infinity;
-  Object.keys(cfg.slots).forEach(function(k){ if(cfg.slots[k] === cardId){ min = Math.min(min, parseInt(k, 10)); } });
+  Object.keys(cfg.slots).forEach(function(k){ if(binderSlotIds(cfg, k).indexOf(cardId) !== -1){ min = Math.min(min, parseInt(k, 10)); } });
   return min;
 }
 
@@ -390,57 +420,89 @@ function openBinderPicker(folder, slotIdx){
   const root = document.getElementById('settingsmodal-root');
   if(!root) return;
   const cfg = getBinderCfg(folder);
-  const candidates = binderFolderCards(folder).filter(function(c){
-    const q = parseInt(c.quantity, 10) || 1;
-    return q - binderPlacedCount(cfg, c.id) > 0;
-  }).sort(function(a, b){ return a.name.localeCompare(b.name, 'de'); });
+  const existing = binderSlotIds(cfg, slotIdx);
+  const candidates = binderFolderCards(folder).map(function(c){
+    return { c: c, free: (parseInt(c.quantity, 10) || 1) - binderPlacedCount(cfg, c.id) };
+  }).filter(function(x){ return x.free > 0; }).sort(function(a, b){ return a.c.name.localeCompare(b.c.name, 'de'); });
+  const picked = [];   // Reihenfolge der Auswahl = Reihenfolge im Slot (zuerst gewählt liegt vorne)
+
+  function countOf(id){ return picked.filter(function(x){ return x === id; }).length; }
 
   root.innerHTML = '' +
   '<div class="modal-overlay" id="binder-modal-overlay" style="z-index:70;">' +
     '<div class="modal" style="max-width:460px;max-height:85vh;display:flex;flex-direction:column;">' +
-      '<div class="modal-head"><h2>Karte in Slot legen</h2><button class="modal-close" id="binder-modal-close" type="button">×</button></div>' +
+      '<div class="modal-head"><h2>' + (existing.length ? 'Karten hinter die Slot-Karte legen' : 'Karten in Slot legen') + '</h2><button class="modal-close" id="binder-modal-close" type="button">×</button></div>' +
       '<div class="searchbar" style="margin-top:0;margin-bottom:10px;">' +
         '<input id="binder-pick-search" type="text" placeholder="Kartenname suchen…" autocomplete="off">' +
       '</div>' +
       '<div id="binder-pick-list" style="overflow-y:auto;flex:1;"></div>' +
-      '<div class="hint" style="margin-top:8px;">Es werden nur Karten aus diesem Ordner angezeigt, die noch freie Exemplare haben. Weitere Karten legst du über das + unten rechts an.</div>' +
+      '<button class="btn btn-primary" id="binder-pick-confirm" type="button" style="margin-top:10px;" disabled>Karten auswählen</button>' +
+      '<div class="hint" style="margin-top:8px;">Tippe auf Karten, um sie in den Slot zu legen. Mit + und − wählst du mehrere Exemplare. Die zuerst gewählte Karte liegt vorne. Es erscheinen nur Karten aus diesem Ordner mit freien Exemplaren.</div>' +
     '</div>' +
   '</div>';
 
+  function updateFooter(){
+    const btn = document.getElementById('binder-pick-confirm');
+    btn.disabled = picked.length === 0;
+    btn.textContent = picked.length ? ('In Slot legen (' + picked.length + ')') : 'Karten auswählen';
+  }
+
   function fillList(){
     const q = (document.getElementById('binder-pick-search').value || '').toLowerCase().trim();
-    const list = candidates.filter(function(c){ return !q || c.name.toLowerCase().indexOf(q) !== -1; });
+    const list = candidates.filter(function(x){ return !q || x.c.name.toLowerCase().indexOf(q) !== -1; });
     const el = document.getElementById('binder-pick-list');
+    const scroll = el.scrollTop;
     if(list.length === 0){
       el.innerHTML = '<div class="empty-state"><p>' + (candidates.length === 0 ? 'Keine freien Karten in diesem Ordner.' : 'Keine Treffer.') + '</p></div>';
       return;
     }
-    el.innerHTML = list.slice(0, 60).map(function(c){
-      const free = (parseInt(c.quantity, 10) || 1) - binderPlacedCount(cfg, c.id);
-      return '<div class="card-row" data-bpick="' + escapeAttr(c.id) + '" style="cursor:pointer;">' +
+    el.innerHTML = list.slice(0, 60).map(function(x){
+      const c = x.c;
+      const n = countOf(c.id);
+      return '<div class="card-row" data-bpick="' + escapeAttr(c.id) + '" style="cursor:pointer;' + (n ? 'border-color:var(--gold);' : '') + '">' +
         '<div class="info" style="flex:1;min-width:0;">' +
           '<div style="font-weight:600;word-break:break-word;">' + escapeHtml(c.name) + '</div>' +
-          '<div style="font-size:12px;color:var(--text-muted);">' + escapeHtml([c.setCode, c.rarity].filter(Boolean).join(' · ')) + '</div>' +
+          '<div style="font-size:12px;color:var(--text-muted);">' + escapeHtml([c.setCode, c.rarity].filter(Boolean).join(' · ')) + ' · frei ×' + x.free + '</div>' +
         '</div>' +
-        '<div class="qty">frei ×' + free + '</div>' +
+        '<div class="binder-stepper">' +
+          '<button type="button" data-bminus="' + escapeAttr(c.id) + '">−</button>' +
+          '<b>' + n + '</b>' +
+          '<button type="button" data-bplus="' + escapeAttr(c.id) + '">+</button>' +
+        '</div>' +
       '</div>';
     }).join('');
+    el.scrollTop = scroll;
+
+    function add(id){
+      const item = candidates.filter(function(x){ return x.c.id === id; })[0];
+      if(item && countOf(id) < item.free){ picked.push(id); fillList(); updateFooter(); }
+    }
+    function remove(id){
+      const i = picked.lastIndexOf(id);
+      if(i !== -1){ picked.splice(i, 1); fillList(); updateFooter(); }
+    }
     el.querySelectorAll('[data-bpick]').forEach(function(row){
-      row.onclick = function(){
-        const cur = getBinderCfg(folder);
-        const slots = Object.assign({}, cur.slots);
-        slots[slotIdx] = row.getAttribute('data-bpick');
-        setBinderCfg(folder, { slots: slots });
-        closeBinderModal();
-        render();
-      };
+      row.onclick = function(){ add(row.getAttribute('data-bpick')); };
+    });
+    el.querySelectorAll('[data-bplus]').forEach(function(btn){
+      btn.onclick = function(e){ e.stopPropagation(); add(btn.getAttribute('data-bplus')); };
+    });
+    el.querySelectorAll('[data-bminus]').forEach(function(btn){
+      btn.onclick = function(e){ e.stopPropagation(); remove(btn.getAttribute('data-bminus')); };
     });
   }
 
   document.getElementById('binder-modal-close').onclick = closeBinderModal;
   document.getElementById('binder-modal-overlay').onclick = function(e){ if(e.target.id === 'binder-modal-overlay') closeBinderModal(); };
   document.getElementById('binder-pick-search').oninput = fillList;
+  document.getElementById('binder-pick-confirm').onclick = function(){
+    if(picked.length === 0) return;
+    binderSetSlot(folder, slotIdx, existing.concat(picked));
+    closeBinderModal();
+    render();
+  };
   fillList();
+  updateFooter();
   document.getElementById('binder-pick-search').focus();
 }
 
@@ -448,34 +510,59 @@ function openBinderSlotActions(folder, slotIdx){
   const root = document.getElementById('settingsmodal-root');
   if(!root) return;
   const cfg = getBinderCfg(folder);
-  const c = cards.find(function(x){ return x.id === cfg.slots[slotIdx]; });
-  if(!c) return;
+  const ids = binderSlotIds(cfg, slotIdx);
+  const entries = [];
+  ids.forEach(function(id, i){
+    const c = cards.find(function(x){ return x.id === id; });
+    if(c) entries.push({ c: c, i: i });
+  });
+  if(entries.length === 0) return;
   const per = binderPerPage(cfg);
   const page = Math.floor(slotIdx / per) + 1;
   const pos = (slotIdx % per) + 1;
-  const meta = [c.setCode, c.rarity, c.condition].filter(Boolean).join(' · ');
+  const title = entries.length === 1 ? entries[0].c.name : ('Slot mit ' + entries.length + ' Karten');
 
   root.innerHTML = '' +
   '<div class="modal-overlay" id="binder-modal-overlay" style="z-index:70;">' +
-    '<div class="modal" style="max-width:380px;">' +
-      '<div class="modal-head"><h2>' + escapeHtml(c.name) + '</h2><button class="modal-close" id="binder-modal-close" type="button">×</button></div>' +
-      '<div class="hint" style="margin-bottom:14px;">Seite ' + page + ', Platz ' + pos + (meta ? ' · ' + escapeHtml(meta) : '') + '</div>' +
-      '<button class="btn btn-secondary" id="binder-act-edit" type="button" style="margin-bottom:8px;">✎ Karte bearbeiten</button>' +
-      '<button class="btn btn-danger" id="binder-act-remove" type="button">Aus Slot entfernen</button>' +
+    '<div class="modal" style="max-width:420px;max-height:85vh;display:flex;flex-direction:column;">' +
+      '<div class="modal-head"><h2>' + escapeHtml(title) + '</h2><button class="modal-close" id="binder-modal-close" type="button">×</button></div>' +
+      '<div class="hint" style="margin-bottom:10px;">Seite ' + page + ', Platz ' + pos + (entries.length > 1 ? ' · vorderste Karte zuerst' : '') + '</div>' +
+      '<div style="overflow-y:auto;flex:1;">' +
+        entries.map(function(en, n){
+          const c = en.c;
+          const meta = [c.setCode, c.rarity, c.condition].filter(Boolean).join(' · ');
+          return '<div class="card-row" style="align-items:center;">' +
+            '<div class="info" style="flex:1;min-width:0;">' +
+              '<div style="font-weight:600;word-break:break-word;">' + (n + 1) + '. ' + escapeHtml(c.name) + '</div>' +
+              (meta ? '<div style="font-size:12px;color:var(--text-muted);">' + escapeHtml(meta) + '</div>' : '') +
+            '</div>' +
+            '<div style="display:flex;gap:6px;">' +
+              '<button type="button" class="btn btn-secondary" data-bedit="' + escapeAttr(c.id) + '" style="width:auto;padding:5px 10px;font-size:12px;">✎</button>' +
+              '<button type="button" class="btn btn-danger" data-brem="' + en.i + '" style="width:auto;padding:5px 10px;font-size:12px;">Entfernen</button>' +
+            '</div>' +
+          '</div>';
+        }).join('') +
+      '</div>' +
+      '<button class="btn btn-secondary" id="binder-act-add" type="button" style="margin-top:10px;">+ Karte dahinter legen</button>' +
     '</div>' +
   '</div>';
 
   document.getElementById('binder-modal-close').onclick = closeBinderModal;
   document.getElementById('binder-modal-overlay').onclick = function(e){ if(e.target.id === 'binder-modal-overlay') closeBinderModal(); };
-  document.getElementById('binder-act-edit').onclick = function(){ closeBinderModal(); openModalForEdit(c.id); };
-  document.getElementById('binder-act-remove').onclick = function(){
-    const cur = getBinderCfg(folder);
-    const slots = Object.assign({}, cur.slots);
-    delete slots[slotIdx];
-    setBinderCfg(folder, { slots: slots });
-    closeBinderModal();
-    render();
-  };
+  document.querySelectorAll('[data-bedit]').forEach(function(btn){
+    btn.onclick = function(){ const id = btn.getAttribute('data-bedit'); closeBinderModal(); openModalForEdit(id); };
+  });
+  document.querySelectorAll('[data-brem]').forEach(function(btn){
+    btn.onclick = function(){
+      const i = parseInt(btn.getAttribute('data-brem'), 10);
+      const cur = binderSlotIds(getBinderCfg(folder), slotIdx).slice();
+      cur.splice(i, 1);
+      binderSetSlot(folder, slotIdx, cur);
+      closeBinderModal();
+      render();
+    };
+  });
+  document.getElementById('binder-act-add').onclick = function(){ closeBinderModal(); openBinderPicker(folder, slotIdx); };
 }
 
 /* ---------- Listener ---------- */
