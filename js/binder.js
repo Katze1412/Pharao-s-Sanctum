@@ -410,6 +410,67 @@ async function binderRunQueue(){
   binderImgBusy = false;
 }
 
+/* ---------- Bild-Diagnose (zeigt, an welchem Schritt die Suche scheitert) ---------- */
+async function binderDiagnose(c){
+  const lines = [];
+  const base = 'https://db.ygoprodeck.com/api/v7/';
+  const name = c.name.trim();
+
+  async function probe(label, url, pick){
+    try{
+      const res = await fetch(url);
+      const raw = await res.text();
+      let data = null;
+      try{ data = JSON.parse(raw); } catch(e){}
+      const info = pick(data);
+      lines.push((info.ok ? '✓ ' : '✗ ') + label + ': ' + info.text + ' (HTTP ' + res.status + ')');
+      return info;
+    } catch(e){
+      lines.push('✗ ' + label + ': Anfrage blockiert oder kein Netz (' + ((e && e.message) || 'Fehler') + ')');
+      return { ok: false };
+    }
+  }
+  function cardPick(d){
+    if(d && d.data && d.data.length){
+      const x = d.data[0];
+      return { ok: true, text: 'gefunden – ' + x.name + ', ID ' + x.id, id: x.id };
+    }
+    return { ok: false, text: 'nichts gefunden' };
+  }
+
+  let id = 0;
+  let r = await probe('Name (Deutsch)', base + 'cardinfo.php?name=' + encodeURIComponent(name) + '&language=de', cardPick);
+  if(r.ok) id = r.id;
+  if(!id){
+    r = await probe('Name (Englisch)', base + 'cardinfo.php?name=' + encodeURIComponent(name), cardPick);
+    if(r.ok) id = r.id;
+  }
+  if(!id){
+    const en = ygoEnglishSetCode({ setCode: c.setCode, cardNumber: c.cardNumber });
+    if(!en){
+      lines.push('✗ Set-Code: Set-Kürzel oder Kartennummer fehlt bzw. hat ein ungewohntes Format (erwartet z. B. PHHY + DE043)');
+    } else {
+      r = await probe('Set-Code ' + en, base + 'cardsetsinfo.php?setcode=' + encodeURIComponent(en), function(d){
+        if(d && d.id) return { ok: true, text: 'ID ' + d.id + ' (' + d.name + ')', id: d.id };
+        return { ok: false, text: 'kein Eintrag' };
+      });
+      if(r.ok) id = r.id;
+    }
+  }
+  if(!id){
+    lines.push('→ Kein Treffer, die Karte bekommt kein Bild.');
+    return { lines: lines, id: 0 };
+  }
+  const imgOk = await new Promise(function(resolve){
+    const im = new Image();
+    im.onload = function(){ resolve(true); };
+    im.onerror = function(){ resolve(false); };
+    im.src = binderImgUrl(id);
+  });
+  lines.push((imgOk ? '✓ ' : '✗ ') + 'Bilddatei ' + id + '.jpg: ' + (imgOk ? 'lädt' : 'lädt nicht'));
+  return { lines: lines, id: imgOk ? id : 0 };
+}
+
 /* ---------- Slot-Dialoge ---------- */
 function closeBinderModal(){
   const root = document.getElementById('settingsmodal-root');
@@ -537,12 +598,14 @@ function openBinderSlotActions(folder, slotIdx){
               (meta ? '<div style="font-size:12px;color:var(--text-muted);">' + escapeHtml(meta) + '</div>' : '') +
             '</div>' +
             '<div style="display:flex;gap:6px;">' +
+              '<button type="button" class="btn btn-secondary" data-bdiag="' + escapeAttr(c.id) + '" title="Bildsuche prüfen" style="width:auto;padding:5px 10px;font-size:12px;">🔍</button>' +
               '<button type="button" class="btn btn-secondary" data-bedit="' + escapeAttr(c.id) + '" style="width:auto;padding:5px 10px;font-size:12px;">✎</button>' +
               '<button type="button" class="btn btn-danger" data-brem="' + en.i + '" style="width:auto;padding:5px 10px;font-size:12px;">Entfernen</button>' +
             '</div>' +
           '</div>';
         }).join('') +
       '</div>' +
+      '<div id="binder-diag" class="mono" style="display:none;margin-top:10px;padding:8px 10px;font-size:11.5px;line-height:1.5;background:var(--panel);border:1px solid var(--border);border-radius:8px;word-break:break-word;"></div>' +
       '<button class="btn btn-secondary" id="binder-act-add" type="button" style="margin-top:10px;">+ Karte dahinter legen</button>' +
     '</div>' +
   '</div>';
@@ -551,6 +614,28 @@ function openBinderSlotActions(folder, slotIdx){
   document.getElementById('binder-modal-overlay').onclick = function(e){ if(e.target.id === 'binder-modal-overlay') closeBinderModal(); };
   document.querySelectorAll('[data-bedit]').forEach(function(btn){
     btn.onclick = function(){ const id = btn.getAttribute('data-bedit'); closeBinderModal(); openModalForEdit(id); };
+  });
+  document.querySelectorAll('[data-bdiag]').forEach(function(btn){
+    btn.onclick = async function(){
+      const c = cards.find(function(x){ return x.id === btn.getAttribute('data-bdiag'); });
+      const box = document.getElementById('binder-diag');
+      if(!c || !box) return;
+      box.style.display = 'block';
+      box.textContent = 'Prüfe …';
+      const res = await binderDiagnose(c);
+      box.innerHTML = res.lines.map(escapeHtml).join('<br>') +
+        (res.id ? '<br><button type="button" class="btn btn-primary" id="binder-diag-apply" style="margin-top:8px;padding:6px 12px;font-size:12px;">Bild übernehmen</button>' : '');
+      const apply = document.getElementById('binder-diag-apply');
+      if(apply){
+        apply.onclick = function(){
+          binderImgGet()[c.name] = res.id;
+          binderImgSave();
+          delete binderImgMiss[c.name];
+          closeBinderModal();
+          render();
+        };
+      }
+    };
   });
   document.querySelectorAll('[data-brem]').forEach(function(btn){
     btn.onclick = function(){
