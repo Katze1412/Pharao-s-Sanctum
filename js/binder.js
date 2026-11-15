@@ -22,6 +22,7 @@ function getBinderCfg(folder){
   const stored = (settings.folderBinder && settings.folderBinder[folder]) || {};
   const cfg = Object.assign({}, BINDER_DEFAULTS, stored);
   cfg.slots = stored.slots || {};
+  cfg.art = stored.art || {};   // gewähltes Artwork pro Karte: { kartenId: bildId }
   cfg.mode = (stored.mode === 'list') ? 'list' : 'binder';   // frühere Werte (z. B. 'box') -> Binder
   if(cfg.spread !== 1 && cfg.spread !== 2){
     cfg.spread = (window.innerWidth >= 640) ? 2 : 1;
@@ -149,14 +150,15 @@ function renderBinderSettings(cfg){
   '</div>';
 }
 
-function renderBinderSlot(list, idx){
+function renderBinderSlot(list, idx, cfg){
   if(!list || list.length === 0){
     return '<button type="button" class="binder-slot empty" data-bslot="' + idx + '" aria-label="Leerer Slot"><span>+</span></button>';
   }
   const c = list[0];
   const stacked = list.length > 1;
+  const art = (cfg && cfg.art && cfg.art[c.id]) ? cfg.art[c.id] : '';
   const names = list.map(function(x){ return x.name; }).join(' · ');
-  return '<button type="button" class="binder-slot filled' + (stacked ? ' stacked' : '') + '" data-bslot="' + idx + '" data-bname="' + escapeAttr(c.name) + '" data-bsc="' + escapeAttr(c.setCode || '') + '" data-bcn="' + escapeAttr(c.cardNumber || '') + '" title="' + escapeAttr(names) + '">' +
+  return '<button type="button" class="binder-slot filled' + (stacked ? ' stacked' : '') + '" data-bslot="' + idx + '" data-bname="' + escapeAttr(c.name) + '" data-bsc="' + escapeAttr(c.setCode || '') + '" data-bcn="' + escapeAttr(c.cardNumber || '') + '"' + (art ? ' data-bart="' + escapeAttr(art) + '"' : '') + ' title="' + escapeAttr(names) + '">' +
     '<span class="binder-slot-name">' + escapeHtml(c.name) + '</span>' +
     (stacked ? '<span class="binder-slot-count">×' + list.length + '</span>' : '') +
   '</button>';
@@ -171,7 +173,7 @@ function renderBinderPage(cfg, p, total, byId, side){
   for(let i = 0; i < per; i++){
     const idx = p * per + i;
     const list = binderSlotIds(cfg, idx).map(function(id){ return byId[id]; }).filter(Boolean);
-    slotsHtml += renderBinderSlot(list, idx);
+    slotsHtml += renderBinderSlot(list, idx, cfg);
   }
   return '<div class="binder-page ' + side + '" style="grid-template-columns:repeat(' + cfg.cols + ',minmax(0,1fr));">' +
     slotsHtml +
@@ -361,14 +363,104 @@ function binderImgSave(){
 function binderImgUrl(id){
   return 'https://images.ygoprodeck.com/images/cards_small/' + id + '.jpg';
 }
+/* ---- Lokaler Bildspeicher (IndexedDB, nur dieses Gerät) ----
+   Jedes Bild wird einmal von YGOPRODeck geladen und danach aus dem Gerät angezeigt.
+   Erlaubt der Bildserver das Speichern nicht (CORS), wird das Bild wie bisher direkt eingebunden. */
+let binderDbPromise = null;
+let binderObjUrls = {};
+let binderCorsOk = null;      // null = unbekannt, true/false = Ergebnis dieser Sitzung
+let binderNetChain = Promise.resolve();
+
+function binderDb(){
+  if(!binderDbPromise){
+    binderDbPromise = new Promise(function(resolve){
+      try {
+        const req = indexedDB.open('ps_binder_images', 1);
+        req.onupgradeneeded = function(){ req.result.createObjectStore('img'); };
+        req.onsuccess = function(){ resolve(req.result); };
+        req.onerror = function(){ resolve(null); };
+      } catch(e){ resolve(null); }
+    });
+  }
+  return binderDbPromise;
+}
+function binderIdbGet(id){
+  return binderDb().then(function(db){
+    if(!db) return null;
+    return new Promise(function(resolve){
+      try {
+        const r = db.transaction('img').objectStore('img').get(String(id));
+        r.onsuccess = function(){ resolve(r.result || null); };
+        r.onerror = function(){ resolve(null); };
+      } catch(e){ resolve(null); }
+    });
+  });
+}
+function binderIdbPut(id, blob){
+  return binderDb().then(function(db){
+    if(!db) return false;
+    return new Promise(function(resolve){
+      try {
+        const tx = db.transaction('img', 'readwrite');
+        tx.objectStore('img').put(blob, String(id));
+        tx.oncomplete = function(){ resolve(true); };
+        tx.onerror = function(){ resolve(false); };
+      } catch(e){ resolve(false); }
+    });
+  });
+}
+// Netzwerkzugriffe nacheinander mit kleiner Pause (YGOPRODeck: max. 20 Anfragen pro Sekunde)
+function binderSerial(fn){
+  const p = binderNetChain.then(fn, fn);
+  binderNetChain = p.then(function(){ return new Promise(function(r){ setTimeout(r, 80); }); },
+                          function(){ return new Promise(function(r){ setTimeout(r, 80); }); });
+  return p;
+}
+async function binderImageSrc(id){
+  if(binderObjUrls[id]) return binderObjUrls[id];
+  const stored = await binderIdbGet(id);
+  if(stored){
+    binderObjUrls[id] = URL.createObjectURL(stored);
+    return binderObjUrls[id];
+  }
+  if(binderCorsOk !== false){
+    const blob = await binderSerial(async function(){
+      try {
+        const res = await fetch(binderImgUrl(id));
+        if(!res.ok) return null;
+        const b = await res.blob();
+        binderCorsOk = true;
+        return (b && b.size > 0) ? b : null;
+      } catch(e){
+        binderCorsOk = false;   // Server erlaubt kein Speichern -> bis zum Neuladen nicht mehr versuchen
+        return null;
+      }
+    });
+    if(blob){
+      await binderIdbPut(id, blob);
+      binderObjUrls[id] = URL.createObjectURL(blob);
+      return binderObjUrls[id];
+    }
+  }
+  return binderImgUrl(id);   // Notlösung: direkt von YGOPRODeck einbinden
+}
+function binderShowImage(el, imageId){
+  binderImageSrc(imageId).then(function(src){
+    if(!el.isConnected) return;
+    el.style.backgroundImage = 'url("' + src + '")';
+    el.classList.add('has-img');
+  });
+}
+
 function binderApplyImages(){
   const cache = binderImgGet();
   document.querySelectorAll('.binder-slot.filled[data-bname]').forEach(function(el){
+    const art = el.getAttribute('data-bart');
+    if(art){ binderShowImage(el, art); return; }          // gewähltes Artwork
     const name = el.getAttribute('data-bname');
     const v = cache[name];
     if(v){
-      el.style.backgroundImage = 'url(' + binderImgUrl(v) + ')';
-      el.classList.add('has-img');
+      binderShowImage(el, v);
     } else if(!binderImgMiss[name]){
       const known = binderImgQueue.some(function(q){ return q.name === name; });
       if(!known){
@@ -400,9 +492,8 @@ async function binderRunQueue(){
       binderImgMiss[name] = true;   // nur bis zum Neuladen merken, damit spätere Fixes greifen
     }
     document.querySelectorAll('.binder-slot.filled[data-bname]').forEach(function(el){
-      if(el.getAttribute('data-bname') === name && id){
-        el.style.backgroundImage = 'url(' + binderImgUrl(id) + ')';
-        el.classList.add('has-img');
+      if(el.getAttribute('data-bname') === name && id && !el.getAttribute('data-bart')){
+        binderShowImage(el, id);
       }
     });
     await new Promise(function(r){ setTimeout(r, 120); });
@@ -468,6 +559,15 @@ async function binderDiagnose(c){
     im.src = binderImgUrl(id);
   });
   lines.push((imgOk ? '✓ ' : '✗ ') + 'Bilddatei ' + id + '.jpg: ' + (imgOk ? 'lädt' : 'lädt nicht'));
+  let canStore = false;
+  if(imgOk){
+    try {
+      const r = await fetch(binderImgUrl(id));
+      const b = await r.blob();
+      canStore = r.ok && b.size > 0;
+    } catch(e){}
+    lines.push((canStore ? '✓ ' : '✗ ') + 'Lokal speichern: ' + (canStore ? 'möglich' : 'vom Bildserver nicht erlaubt, Bilder werden direkt eingebunden'));
+  }
   return { lines: lines, id: imgOk ? id : 0 };
 }
 
@@ -598,6 +698,7 @@ function openBinderSlotActions(folder, slotIdx){
               (meta ? '<div style="font-size:12px;color:var(--text-muted);">' + escapeHtml(meta) + '</div>' : '') +
             '</div>' +
             '<div style="display:flex;gap:6px;">' +
+              '<button type="button" class="btn btn-secondary" data-bartbtn="' + escapeAttr(c.id) + '" title="Artwork wählen" style="width:auto;padding:5px 10px;font-size:12px;">🖼</button>' +
               '<button type="button" class="btn btn-secondary" data-bdiag="' + escapeAttr(c.id) + '" title="Bildsuche prüfen" style="width:auto;padding:5px 10px;font-size:12px;">🔍</button>' +
               '<button type="button" class="btn btn-secondary" data-bedit="' + escapeAttr(c.id) + '" style="width:auto;padding:5px 10px;font-size:12px;">✎</button>' +
               '<button type="button" class="btn btn-danger" data-brem="' + en.i + '" style="width:auto;padding:5px 10px;font-size:12px;">Entfernen</button>' +
@@ -614,6 +715,9 @@ function openBinderSlotActions(folder, slotIdx){
   document.getElementById('binder-modal-overlay').onclick = function(e){ if(e.target.id === 'binder-modal-overlay') closeBinderModal(); };
   document.querySelectorAll('[data-bedit]').forEach(function(btn){
     btn.onclick = function(){ const id = btn.getAttribute('data-bedit'); closeBinderModal(); openModalForEdit(id); };
+  });
+  document.querySelectorAll('[data-bartbtn]').forEach(function(btn){
+    btn.onclick = function(){ const id = btn.getAttribute('data-bartbtn'); openBinderArtworkPicker(folder, id); };
   });
   document.querySelectorAll('[data-bdiag]').forEach(function(btn){
     btn.onclick = async function(){
@@ -648,6 +752,57 @@ function openBinderSlotActions(folder, slotIdx){
     };
   });
   document.getElementById('binder-act-add').onclick = function(){ closeBinderModal(); openBinderPicker(folder, slotIdx); };
+}
+
+/* ---------- Artwork wählen ---------- */
+async function openBinderArtworkPicker(folder, cardId){
+  const root = document.getElementById('settingsmodal-root');
+  const c = cards.find(function(x){ return x.id === cardId; });
+  if(!root || !c) return;
+  root.innerHTML = '' +
+  '<div class="modal-overlay" id="binder-modal-overlay" style="z-index:70;">' +
+    '<div class="modal" style="max-width:460px;max-height:85vh;display:flex;flex-direction:column;">' +
+      '<div class="modal-head"><h2>Artwork wählen</h2><button class="modal-close" id="binder-modal-close" type="button">×</button></div>' +
+      '<div class="hint" style="margin-bottom:10px;">' + escapeHtml(c.name) + '</div>' +
+      '<div id="binder-art-body" style="overflow-y:auto;flex:1;"><div class="hint">Lade Artworks …</div></div>' +
+    '</div>' +
+  '</div>';
+  document.getElementById('binder-modal-close').onclick = closeBinderModal;
+  document.getElementById('binder-modal-overlay').onclick = function(e){ if(e.target.id === 'binder-modal-overlay') closeBinderModal(); };
+
+  let card = null;
+  try { card = await fetchYgoCard(c.name, { setCode: c.setCode, cardNumber: c.cardNumber }); } catch(e){}
+  let imgs = (card && card.card_images) ? card.card_images : [];
+  if(!imgs.length && card && card.id){   // nur Basisdaten vorhanden -> vollständige Karte über die ID holen
+    try {
+      const res = await fetch('https://db.ygoprodeck.com/api/v7/cardinfo.php?id=' + encodeURIComponent(card.id));
+      const d = JSON.parse(await res.text());
+      if(d && d.data && d.data[0]) imgs = d.data[0].card_images || [];
+    } catch(e){}
+  }
+  const body = document.getElementById('binder-art-body');
+  if(!body) return;   // Dialog wurde inzwischen geschlossen
+  if(imgs.length === 0){ body.innerHTML = '<div class="hint">Zu dieser Karte wurden keine Artworks gefunden.</div>'; return; }
+  if(imgs.length === 1){ body.innerHTML = '<div class="hint">Diese Karte hat nur ein Artwork.</div>'; return; }
+
+  const cfg = getBinderCfg(folder);
+  const current = cfg.art[cardId] ? String(cfg.art[cardId]) : String(imgs[0].id);
+  body.innerHTML = '<div class="binder-art-grid">' + imgs.map(function(im, i){
+    return '<button type="button" class="binder-art-item' + (String(im.id) === current ? ' sel' : '') + '" data-bartpick="' + escapeAttr(im.id) + '" aria-label="Artwork ' + (i + 1) + '">' +
+      (i === 0 ? '<span class="binder-art-tag">Standard</span>' : '') + '</button>';
+  }).join('') + '</div>' +
+  '<div class="hint" style="margin-top:10px;">Gilt für alle Exemplare dieser Karte im Binder. Die Seltenheits-Optik (Folie) zeigt die Datenbank nicht.</div>';
+  body.querySelectorAll('[data-bartpick]').forEach(function(btn){
+    binderShowImage(btn, btn.getAttribute('data-bartpick'));
+    btn.onclick = function(){
+      const id = btn.getAttribute('data-bartpick');
+      const art = Object.assign({}, getBinderCfg(folder).art);
+      if(String(id) === String(imgs[0].id)) delete art[cardId]; else art[cardId] = id;
+      setBinderCfg(folder, { art: art });
+      closeBinderModal();
+      render();
+    };
+  });
 }
 
 /* ---------- Listener ---------- */
