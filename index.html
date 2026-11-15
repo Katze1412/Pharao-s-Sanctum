@@ -500,6 +500,19 @@ textarea.csv-input{min-height:120px;font-family:'JetBrains Mono',monospace;font-
 .binder-stepper button:hover{border-color:var(--gold);}
 .binder-stepper b{min-width:30px;text-align:center;font-family:'JetBrains Mono',monospace;color:var(--text);}
 
+/* Artwork-Auswahl */
+.binder-art-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:10px;}
+.binder-art-item{
+  position:relative;aspect-ratio:59/86;padding:0;cursor:pointer;overflow:hidden;
+  border:2px solid var(--border);border-radius:7px;background:var(--panel-2) center/cover no-repeat;
+}
+.binder-art-item:hover{border-color:var(--gold-dim, var(--gold));}
+.binder-art-item.sel{border-color:var(--gold-bright);box-shadow:0 0 10px rgba(201,162,39,.55);}
+.binder-art-tag{
+  position:absolute;left:0;right:0;bottom:0;padding:2px 4px;font-size:10px;font-weight:700;text-align:center;
+  background:rgba(0,0,0,.72);color:var(--gold-bright);
+}
+
 /* Umblätter-Animation */
 .binder-flip{
   position:absolute;top:0;bottom:0;transform-style:preserve-3d;
